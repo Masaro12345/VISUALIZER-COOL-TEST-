@@ -125,7 +125,8 @@
 <script>
 (function(){
   const canvas = document.getElementById('viz-canvas');
-  const ctx = canvas.getContext('2d', { alpha: false });
+  // Enable alpha channel for transparency
+  const ctx = canvas.getContext('2d', { alpha: true });
   const vizWrap = document.getElementById('viz-wrap');
   const snareFlashEl = document.getElementById('snare-flash');
 
@@ -346,8 +347,8 @@
   }
 
   function drawBars(values, pulse, theme) {
-    ctx.fillStyle = '#02060f';
-    ctx.fillRect(0, 0, W, H);
+    // Clear canvas instead of painting a solid background rectangle
+    ctx.clearRect(0, 0, W, H);
 
     const gap = Math.max(2, W * 0.0035);
     const usableWidth = W - gap * (HALF_BARS * 2 - 1);
