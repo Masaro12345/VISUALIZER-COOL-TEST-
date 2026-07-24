@@ -49,24 +49,24 @@
     position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
     z-index: 10; background: var(--panel-bg); border: 1px solid var(--panel-border);
     border-radius: 12px; padding: 14px 20px;
-    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-    max-width: 92vw;
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    max-width: 95vw;
     transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
     box-shadow: 0 8px 32px rgba(0, 180, 255, 0.08);
   }
   #panel input[type=text] {
     background: rgba(0, 150, 255, 0.08); border: 1px solid rgba(0, 210, 255, 0.25);
-    color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; width: 220px; outline: none;
+    color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; width: 200px; outline: none;
     transition: border-color 0.2s ease, background 0.2s ease;
   }
   #panel input[type=text]:focus { border-color: var(--accent); background: rgba(0, 150, 255, 0.16); }
   #panel input[type=text]::placeholder { color: rgba(180, 220, 255, 0.4); }
   #panel button, #panel select {
     background: rgba(0, 150, 255, 0.1); border: 1px solid rgba(0, 210, 255, 0.25);
-    color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
+    color: #e0f2fe; padding: 10px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
     transition: all 0.2s ease; white-space: nowrap;
   }
-  #panel select { padding-right: 8px; background-color: #080c16; max-width: 180px; }
+  #panel select { padding-right: 6px; background-color: #080c16; }
   #panel button:hover:not(:disabled) { background: rgba(0, 210, 255, 0.22); border-color: rgba(0, 210, 255, 0.5); }
 
   /* History & Preview styling */
@@ -100,7 +100,6 @@
   #panel.hidden { opacity: 0; visibility: hidden; transform: translateX(-50%) translateY(-10px); }
   #status.hidden { opacity: 0; visibility: hidden; }
 
-  /* subtle ice flash overlay on snare hits */
   #snare-flash {
     position: fixed; inset: 0; z-index: 5; pointer-events: none;
     background: #00e1ff; opacity: 0; mix-blend-mode: screen;
@@ -135,6 +134,17 @@
   <select id="history-select" aria-label="Recent Videos History">
     <option value="" disabled selected>📜 History</option>
   </select>
+  <!-- Speed / Pitch Control -->
+  <select id="speed-select" aria-label="Playback Speed">
+    <option value="0.25">0.25x Speed</option>
+    <option value="0.5">0.5x Speed</option>
+    <option value="0.75">0.75x Speed</option>
+    <option value="1" selected>1.0x Normal</option>
+    <option value="1.25">1.25x Speed</option>
+    <option value="1.5">1.5x Speed</option>
+    <option value="1.75">1.75x Speed</option>
+    <option value="2">2.0x Speed</option>
+  </select>
   <button id="capture-btn" title="Requires screen share for tab audio">Enable Real Audio-Reactive</button>
   <button id="sim-btn">Use Ambient Mode</button>
   <select id="theme-select" aria-label="Visual theme"></select>
@@ -151,6 +161,7 @@
 
   const inputEl = document.getElementById('yt-input');
   const historySelectEl = document.getElementById('history-select');
+  const speedSelectEl = document.getElementById('speed-select');
   const previewCard = document.getElementById('preview-card');
   const previewImg = document.getElementById('preview-img');
   const previewTitle = document.getElementById('preview-title');
@@ -161,6 +172,7 @@
   const themeSelectEl = document.getElementById('theme-select');
 
   let player = null;
+  let currentSpeed = 1.0;
   let videoHistory = JSON.parse(localStorage.getItem('yt_viz_history') || '[]');
 
   function setStatus(msg) { statusEl.textContent = msg; }
@@ -217,18 +229,18 @@
     videoHistory.forEach(item => {
       const opt = document.createElement('option');
       opt.value = item.id;
-      opt.textContent = item.title.length > 25 ? item.title.substring(0, 25) + '...' : item.title;
+      opt.textContent = item.title.length > 20 ? item.title.substring(0, 20) + '...' : item.title;
       historySelectEl.appendChild(opt);
     });
   }
 
   async function addToHistory(id) {
     const title = await showPreview(id);
-    setTimeout(hidePreview, 3000); // Keep preview visible briefly
+    setTimeout(hidePreview, 3000);
 
     videoHistory = videoHistory.filter(item => item.id !== id);
     videoHistory.unshift({ id, title });
-    if(videoHistory.length > 10) videoHistory.pop(); // Keep top 10
+    if(videoHistory.length > 10) videoHistory.pop();
 
     localStorage.setItem('yt_viz_history', JSON.stringify(videoHistory));
     updateHistoryDropdown();
@@ -241,6 +253,15 @@
     if(id) {
       inputEl.value = `https://youtu.be/${id}`;
       loadVideoFromInput();
+    }
+  });
+
+  // Speed Handler
+  speedSelectEl.addEventListener('change', (e) => {
+    currentSpeed = parseFloat(e.target.value);
+    if(player && typeof player.setPlaybackRate === 'function') {
+      player.setPlaybackRate(currentSpeed);
+      setStatus(`Playback speed set to ${currentSpeed}x`);
     }
   });
 
@@ -281,12 +302,17 @@
           videoId: id,
           playerVars: { autoplay: 1, controls: 0, modestbranding: 1, rel: 0, loop: 1, playlist: id },
           events: {
-            onReady: (e) => { e.target.playVideo(); resizeVideoCover(); },
+            onReady: (e) => { 
+              e.target.playVideo(); 
+              e.target.setPlaybackRate(currentSpeed);
+              resizeVideoCover(); 
+            },
             onError: () => setIframeVideo(id)
           }
         });
       } else {
         player.loadVideoById(id);
+        setTimeout(() => player.setPlaybackRate(currentSpeed), 500);
       }
     } else {
       setIframeVideo(id);
@@ -297,14 +323,13 @@
   document.getElementById('load-btn').addEventListener('click', loadVideoFromInput);
   inputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') loadVideoFromInput(); });
   
-  // Show live preview on input change/paste
   inputEl.addEventListener('input', () => {
     const id = extractVideoId(inputEl.value);
     if(id) showPreview(id);
     else hidePreview();
   });
 
-  // Themes list including Red and White
+  // Themes list
   const THEMES = [
     { name: 'Deep Blue',      hueBase: 195, hueRange: 30, sat: 90 },
     { name: 'Crimson Red',    hueBase: 350, hueRange: 20, sat: 95 },
@@ -353,7 +378,6 @@
   let hihatPulse = 0, hihatHistory = 0;
   let peakVolume = 0.2;
 
-  // Lightweight particle pool
   const MAX_PARTICLES = 80;
   const particles = [];
 
@@ -507,8 +531,8 @@
   }
 
   function tickAmbient() {
-    ambientPhase += 0.08;
-    wobbleTime += 0.05;
+    ambientPhase += 0.08 * currentSpeed;
+    wobbleTime += 0.05 * currentSpeed;
 
     const simulatedKick  = Math.pow(Math.max(0, Math.sin(ambientPhase * 0.5)), 10);
     const simulatedSnare = Math.pow(Math.max(0, Math.sin(ambientPhase * 0.5 + 1.6)), 12);
