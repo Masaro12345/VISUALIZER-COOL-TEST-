@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YouTube Background Visualizer with Beat Particles</title>
+<style>
+  :root {
+    --bar-white: #e6f4ff;
+    --panel-bg: rgba(8, 12, 22, 0.92);
+    --panel-border: rgba(72, 160, 255, 0.25);
+    --accent: #00d2ff;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: #02060f;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  #video-stage { position: fixed; inset: 0; overflow: hidden; background: #02060f; z-index: 1; }
+  #video-stage iframe { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; border: 0; }
+  #placeholder-msg {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 2; color: rgba(180, 220, 255, 0.6); font-size: 15px; letter-spacing: 0.03em;
+    text-align: center; max-width: 420px; line-height: 1.6;
+  }
+  #vignette {
+    position: fixed; inset: 0; z-index: 2; pointer-events: none;
+    background: radial-gradient(circle at center, rgba(2,6,15,0) 40%, rgba(2,6,15,0.7) 100%),
+                linear-gradient(to top, rgba(2,6,15,0.9) 0%, rgba(2,6,15,0.3) 30%, rgba(2,6,15,0) 60%);
+  }
+
+  #viz-wrap {
+    position: fixed;
+    bottom: 3vh; left: 50%;
+    transform: translateX(-50%);
+    z-index: 4;
+    width: min(94vw, 1400px);
+    height: 380px;
+    pointer-events: none;
+    will-change: transform;
+  }
+  #viz-canvas { width: 100%; height: 100%; display: block; }
+
+  #panel {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 10; background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 12px; padding: 14px 20px;
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    max-width: 92vw;
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+    box-shadow: 0 8px 32px rgba(0, 180, 255, 0.08);
+  }
+  #panel input[type=text] {
+    background: rgba(0, 150, 255, 0.08); border: 1px solid rgba(0, 210, 255, 0.25);
+    color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; width: 260px; outline: none;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  #panel input[type=text]:focus { border-color: var(--accent); background: rgba(0, 150, 255, 0.16); }
+  #panel input[type=text]::placeholder { color: rgba(180, 220, 255, 0.4); }
+  #panel button, #panel select {
+    background: rgba(0, 150, 255, 0.1); border: 1px solid rgba(0, 210, 255, 0.25);
+    color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
+    transition: all 0.2s ease; white-space: nowrap;
+  }
+  #panel select { padding-right: 8px; background-color: #080c16; }
+  #panel button:hover:not(:disabled) { background: rgba(0, 210, 255, 0.22); border-color: rgba(0, 210, 255, 0.5); }
+
+  #status {
+    position: fixed; top: 85px; left: 50%; transform: translateX(-50%);
+    z-index: 10; font-size: 12px; color: var(--accent); letter-spacing: 0.02em;
+    text-align: center; max-width: 520px; pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0.2s;
+    background: rgba(4, 14, 30, 0.75); border: 1px solid rgba(0, 210, 255, 0.15);
+    padding: 6px 14px; border-radius: 20px;
+  }
+
+  #toggle-panel {
+    position: fixed; top: 20px; right: 20px; z-index: 11;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    color: #e0f2fe; width: 40px; height: 40px; border-radius: 50%;
+    cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s ease;
+  }
+  #toggle-panel:hover { background: rgba(0, 210, 255, 0.2); }
+  #panel.hidden { opacity: 0; visibility: hidden; transform: translateX(-50%) translateY(-10px); }
+  #status.hidden { opacity: 0; visibility: hidden; }
+
+  /* subtle ice flash overlay on snare hits */
+  #snare-flash {
+    position: fixed; inset: 0; z-index: 5; pointer-events: none;
+    background: #00e1ff; opacity: 0; mix-blend-mode: screen;
+    will-change: opacity;
+  }
+</style>
+</head>
+<body>
+
+<div id="video-stage">
+  <div id="yt-player-target"></div>
+  <div id="placeholder-msg">Paste a YouTube link or video ID above and hit Load<br>to set the background.</div>
+</div>
+<div id="vignette"></div>
+<div id="snare-flash"></div>
+
+<div id="viz-wrap">
+  <canvas id="viz-canvas"></canvas>
+</div>
+
+<button id="toggle-panel" aria-label="Toggle Control Panel" title="Hide/show controls">⋮</button>
+
+<div id="panel">
+  <input id="yt-input" type="text" placeholder="YouTube URL or video ID" aria-label="YouTube URL Input">
+  <button id="load-btn">Load Video</button>
+  <button id="capture-btn" title="Requires screen share for tab audio">Enable Real Audio-Reactive</button>
+  <button id="sim-btn">Use Ambient Mode</button>
+  <select id="theme-select" aria-label="Visual theme"></select>
+</div>
+<div id="status">Ambient mode running. Real mode requires sharing this tab's audio.</div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+(function(){
+  const canvas = document.getElementById('viz-canvas');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const vizWrap = document.getElementById('viz-wrap');
+  const snareFlashEl = document.getElementById('snare-flash');
+
+  const inputEl = document.getElementById('yt-input');
+  const statusEl = document.getElementById('status');
+  const panelEl = document.getElementById('panel');
+  const placeholderEl = document.getElementById('placeholder-msg');
+  const themeSelectEl = document.getElementById('theme-select');
+
+  let player = null;
+
+  function setStatus(msg) { statusEl.textContent = msg; }
+
+  function extractVideoId(input) {
+    if(!input) return null;
+    const cleaned = input.trim();
+    if(/^[\w-]{11}$/.test(cleaned)) return cleaned;
+    try {
+      const candidate = cleaned.includes('://') ? cleaned : `https://${cleaned}`;
+      const url = new URL(candidate);
+      const host = url.hostname.replace(/^www\./, '');
+      const path = url.pathname.replace(/^\/+/, '');
+      if(['youtu.be', 'youtube.com', 'm.youtube.com'].includes(host)){
+        if(host === 'youtu.be') {
+          const shortId = path.split('/')[0];
+          if(/^[\w-]{11}$/.test(shortId)) return shortId;
+        }
+        if(url.searchParams.get('v')) return url.searchParams.get('v');
+        const parts = path.split('/');
+        if(['shorts', 'embed', 'live'].includes(parts[0])) return parts[1] || null;
+      }
+    } catch(e) {}
+    const fallback = cleaned.match(/([A-Za-z0-9_-]{11})/);
+    return fallback ? fallback[1] : null;
+  }
+
+  function resizeVideoCover() {
+    const iframe = document.querySelector('#video-stage iframe');
+    if(!iframe) return;
+    const aspect = 16/9;
+    const winW = window.innerWidth, winH = window.innerHeight;
+    let w, h;
+    if (winW / winH > aspect) { w = winW * 1.02; h = w / aspect; }
+    else { h = winH * 1.02; w = h * aspect; }
+    iframe.style.width = `${w}px`;
+    iframe.style.height = `${h}px`;
+  }
+  window.addEventListener('resize', resizeVideoCover);
+
+  function setIframeVideo(videoId) {
+    const target = document.getElementById('yt-player-target');
+    target.innerHTML = '';
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('allow', 'autoplay; encrypted-media');
+    iframe.setAttribute('allowfullscreen', 'true');
+    iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=0&modestbranding=1&rel=0&playsinline=1&loop=1&playlist=${videoId}&mute=1&origin=${encodeURIComponent(window.location.origin || 'https://localhost')}`;
+    target.appendChild(iframe);
+    resizeVideoCover();
+  }
+
+  function loadVideoFromInput() {
+    const id = extractVideoId(inputEl.value);
+    if(!id) return setStatus('Could not read a video ID — check the link.');
+    placeholderEl.style.display = 'none';
+    if(typeof YT !== 'undefined' && YT.Player) {
+      if(!player) {
+        player = new YT.Player('yt-player-target', {
+          videoId: id,
+          playerVars: { autoplay: 1, controls: 0, modestbranding: 1, rel: 0, loop: 1, playlist: id },
+          events: {
+            onReady: (e) => { e.target.playVideo(); resizeVideoCover(); },
+            onError: () => setIframeVideo(id)
+          }
+        });
+      } else {
+        player.loadVideoById(id);
+      }
+    } else {
+      setIframeVideo(id);
+    }
+    setStatus('Video loading...');
+  }
+
+  document.getElementById('load-btn').addEventListener('click', loadVideoFromInput);
+  inputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') loadVideoFromInput(); });
+
+  // Blue-Focused Themes
+  const THEMES = [
+    { name: 'Deep Blue',      hueBase: 195, hueRange: 30, sat: 90 },
+    { name: 'Sapphire Glow', hueBase: 215, hueRange: 35, sat: 85 },
+    { name: 'Cyan Shift',    hueBase: 180, hueRange: 25, sat: 95 },
+    { name: 'Oceanic Glow',  hueBase: 170, hueRange: 45, sat: 80 },
+    { name: 'Electric Ice',  hueBase: 190, hueRange: 15, sat: 100 }
+  ];
+  let currentTheme = THEMES[0];
+
+  THEMES.forEach((t, i) => {
+    const opt = document.createElement('option');
+    opt.value = i; opt.textContent = t.name;
+    if(t === currentTheme) opt.selected = true;
+    themeSelectEl.appendChild(opt);
+  });
+  themeSelectEl.addEventListener('change', (e) => {
+    currentTheme = THEMES[parseInt(e.target.value, 10)];
+  });
+
+  // Canvas setup
+  let W, H;
+  function resizeCanvas() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    W = rect.width; H = rect.height;
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  const BAR_COUNT = 96;
+  const HALF_BARS = Math.floor(BAR_COUNT / 2);
+
+  let audioCtx = null, analyser = null, dataArray = null;
+  let mode = 'ambient';
+  let ambientPhase = 0;
+  let wobbleTime = 0;
+
+  let kickPulse = 0, bassHistory = 0;
+  let snarePulse = 0, snareHistory = 0;
+  let hihatPulse = 0, hihatHistory = 0;
+  let peakVolume = 0.2;
+
+  // Lightweight particle pool
+  const MAX_PARTICLES = 80;
+  const particles = [];
+
+  class Particle {
+    constructor(x, y, hue, power, sparkle) {
+      this.init(x, y, hue, power, sparkle);
+    }
+    init(x, y, hue, power, sparkle) {
+      this.x = x; this.y = y;
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * (sparkle ? 2.4 : 1.2);
+      const speed = (sparkle ? 1 : 2) + Math.random() * (sparkle ? 3 : 6) * (0.5 + power);
+      this.vx = Math.cos(angle) * speed;
+      this.vy = Math.sin(angle) * speed;
+      this.radius = sparkle ? (0.8 + Math.random() * 1.2) : (1.5 + Math.random() * 2.5);
+      this.hue = sparkle ? 190 : hue + (Math.random() * 12 - 6);
+      this.sparkle = sparkle;
+      this.alpha = 0.8 + Math.random() * 0.2;
+      this.decay = (sparkle ? 0.04 : 0.02) + Math.random() * 0.02;
+      this.gravity = sparkle ? 0.04 : 0.08;
+    }
+    update() {
+      this.x += this.vx; this.y += this.vy;
+      this.vy += this.gravity;
+      this.vx *= 0.98;
+      this.alpha -= this.decay;
+    }
+    draw(ctx) {
+      if(this.alpha <= 0) return;
+      ctx.globalAlpha = Math.max(0, this.alpha);
+      ctx.fillStyle = this.sparkle ? '#e0f7ff' : `hsl(${this.hue}, 95%, 75%)`;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function spawnBeatParticles(barPositions, pulsePower) {
+    if (pulsePower < 0.2) return;
+    const count = Math.floor(4 + pulsePower * 8);
+    for (let i = 0; i < count; i++) {
+      const bar = barPositions[Math.floor(Math.random() * barPositions.length)];
+      if (bar && bar.height > 10) {
+        if (particles.length < MAX_PARTICLES) {
+          particles.push(new Particle(bar.x, bar.y, bar.hue, pulsePower, false));
+        }
+      }
+    }
+  }
+
+  function spawnSparkles(power) {
+    const count = Math.floor(2 + power * 6);
+    for (let i = 0; i < count; i++) {
+      if (particles.length < MAX_PARTICLES) {
+        particles.push(new Particle(Math.random() * W, H * (0.15 + Math.random() * 0.3), 190, power, true));
+      }
+    }
+  }
+
+  function updateAndDrawParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.update();
+      if (p.alpha <= 0) {
+        particles.splice(i, 1);
+      } else {
+        p.draw(ctx);
+      }
+    }
+    ctx.globalAlpha = 1.0;
+  }
+
+  const smoothed = new Float32Array(HALF_BARS);
+  const rawValues = new Float32Array(HALF_BARS);
+  const renderValues = new Float32Array(HALF_BARS);
+  const peakHeights = new Float32Array(HALF_BARS);
+
+  const binIndices = new Int32Array(HALF_BARS + 1);
+  function updateBinIndices(fftBinCount, sampleRate) {
+    const minFreq = 30, maxFreq = 16000;
+    for (let i = 0; i <= HALF_BARS; i++) {
+      const logFreq = minFreq * Math.pow(maxFreq / minFreq, i / HALF_BARS);
+      const binIndex = Math.floor((logFreq / (sampleRate / 2)) * fftBinCount);
+      binIndices[i] = Math.min(fftBinCount - 1, Math.max(0, binIndex));
+    }
+  }
+
+  function drawBars(values, pulse, theme) {
+    ctx.fillStyle = '#02060f';
+    ctx.fillRect(0, 0, W, H);
+
+    const gap = Math.max(2, W * 0.0035);
+    const usableWidth = W - gap * (HALF_BARS * 2 - 1);
+    const barWidth = Math.max(2, usableWidth / (HALF_BARS * 2));
+    const centerX = W / 2;
+    const maxBarHeight = H * 0.45;
+
+    const activeBarPeaks = [];
+
+    for (let i = 0; i < HALF_BARS; i++) {
+      const v = values[i];
+      const wobble = 1 + Math.sin(wobbleTime * 2.2 + i * 0.4) * 0.02;
+      const barHeight = Math.max(3, v * maxBarHeight * wobble);
+      const y = H - barHeight;
+      const xRight = centerX + i * (barWidth + gap);
+      const xLeft = centerX - (i + 1) * (barWidth + gap);
+
+      const hue = theme.hueBase + (i / HALF_BARS) * theme.hueRange - pulse * 8;
+      const sat = theme.sat;
+      const lightTop = 50 + v * 28 + pulse * 10;
+
+      if (barHeight > peakHeights[i]) peakHeights[i] = barHeight;
+      else peakHeights[i] = Math.max(barHeight, peakHeights[i] - H * 0.012);
+
+      // Clean flat render
+      ctx.fillStyle = `hsl(${hue}, ${sat}%, ${lightTop}%)`;
+      ctx.fillRect(xRight, y, barWidth, barHeight);
+      ctx.fillRect(xLeft, y, barWidth, barHeight);
+
+      // Peak cap
+      const capH = 2;
+      const capY = H - peakHeights[i] - capH - 1;
+      ctx.fillStyle = '#d0f2ff';
+      ctx.fillRect(xRight, capY, barWidth, capH);
+      ctx.fillRect(xLeft, capY, barWidth, capH);
+
+      activeBarPeaks.push({ x: xRight + barWidth / 2, y, height: barHeight, hue });
+      activeBarPeaks.push({ x: xLeft + barWidth / 2, y, height: barHeight, hue });
+    }
+
+    if (pulse > 0.15) spawnBeatParticles(activeBarPeaks, pulse);
+    updateAndDrawParticles();
+  }
+
+  function applyCameraPulse(kick) {
+    const scale = 1 + Math.min(0.03, kick * 0.03);
+    vizWrap.style.transform = `translateX(-50%) scale(${scale})`;
+  }
+
+  function applySnareFlash(snare) {
+    snareFlashEl.style.opacity = String(Math.min(0.25, snare * 0.25));
+  }
+
+  function tickAmbient() {
+    ambientPhase += 0.08;
+    wobbleTime += 0.05;
+
+    const simulatedKick  = Math.pow(Math.max(0, Math.sin(ambientPhase * 0.5)), 10);
+    const simulatedSnare = Math.pow(Math.max(0, Math.sin(ambientPhase * 0.5 + 1.6)), 12);
+    const simulatedHihat = Math.max(0, Math.sin(ambientPhase * 3.1)) > 0.94 ? 1 : 0;
+
+    for (let i = 0; i < HALF_BARS; i++) {
+      const base = Math.sin(ambientPhase + i * 0.2) * 0.5 + 0.5;
+      const wave = Math.cos(ambientPhase * 2 + i * 0.1) * 0.2;
+      renderValues[i] = Math.max(0.04, Math.min(0.85, base * 0.6 + wave + 0.05 + simulatedKick * 0.3));
+    }
+
+    if (simulatedHihat > 0.5) spawnSparkles(0.5);
+    applyCameraPulse(simulatedKick);
+    applySnareFlash(simulatedSnare);
+    drawBars(renderValues, simulatedKick, currentTheme);
+  }
+
+  function tickReal() {
+    analyser.getByteFrequencyData(dataArray);
+    let frameMax = 0;
+
+    for (let i = 0; i < HALF_BARS; i++) {
+      const startBin = binIndices[i];
+      let endBin = binIndices[i + 1];
+      if (endBin <= startBin) endBin = startBin + 1;
+      let sum = 0, count = 0;
+      for (let j = startBin; j < endBin; j++) { sum += dataArray[j]; count++; }
+      let avg = count ? (sum / count) / 255 : 0;
+      const freqEq = 1 + Math.pow(i / HALF_BARS, 1.8) * 2.2;
+      avg *= freqEq;
+      if (avg > frameMax) frameMax = avg;
+      rawValues[i] = avg;
+    }
+
+    peakVolume = Math.max(peakVolume * 0.992, frameMax, 0.15);
+    const gainFactor = 1 / peakVolume;
+
+    // Kick
+    let currentBass = 0;
+    for (let i = 0; i < 6; i++) currentBass += rawValues[i];
+    currentBass /= 6;
+    if (currentBass > 0.2 && (currentBass - bassHistory) > 0.07) kickPulse = 1.0;
+    kickPulse = Math.max(0, kickPulse - 0.08);
+    bassHistory = bassHistory * 0.75 + currentBass * 0.25;
+
+    // Snare
+    let currentMid = 0;
+    const midStart = 12, midEnd = 28;
+    for (let i = midStart; i < midEnd; i++) currentMid += rawValues[i];
+    currentMid /= (midEnd - midStart);
+    if (currentMid > 0.16 && (currentMid - snareHistory) > 0.065) snarePulse = 1.0;
+    snarePulse = Math.max(0, snarePulse - 0.15);
+    snareHistory = snareHistory * 0.7 + currentMid * 0.3;
+
+    // Hi-hat
+    let currentHigh = 0;
+    const hiStart = HALF_BARS - 10;
+    for (let i = hiStart; i < HALF_BARS; i++) currentHigh += rawValues[i];
+    currentHigh /= (HALF_BARS - hiStart);
+    if (currentHigh > 0.12 && (currentHigh - hihatHistory) > 0.05) hihatPulse = 1.0;
+    hihatPulse = Math.max(0, hihatPulse - 0.22);
+    hihatHistory = hihatHistory * 0.6 + currentHigh * 0.4;
+
+    for (let i = 0; i < HALF_BARS; i++) {
+      const target = Math.min(1.0, rawValues[i] * gainFactor * 0.85);
+      if (target > smoothed[i]) smoothed[i] += (target - smoothed[i]) * 0.75;
+      else smoothed[i] += (target - smoothed[i]) * (i < 10 ? 0.18 : 0.28);
+    }
+
+    wobbleTime += 0.05;
+    if (hihatPulse > 0.4) spawnSparkles(hihatPulse);
+    applyCameraPulse(kickPulse);
+    applySnareFlash(snarePulse);
+
+    drawBars(smoothed, kickPulse, currentTheme);
+  }
+
+  function loop() {
+    if (mode === 'real' && analyser) tickReal();
+    else tickAmbient();
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  document.getElementById('capture-btn').addEventListener('click', async () => {
+    try {
+      setStatus('Pick "This Tab" and ensure "Share tab audio" is ENABLED.');
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks.length === 0) {
+        setStatus('No audio track shared! Check "Share tab audio".');
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
+      stream.getVideoTracks().forEach(t => t.stop());
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.35;
+      dataArray = new Uint8Array(analyser.frequencyBinCount);
+      updateBinIndices(analyser.frequencyBinCount, audioCtx.sampleRate);
+      source.connect(analyser);
+      mode = 'real';
+      setStatus('Audio-reactive mode engaged! Syncing with tab audio.');
+      audioTracks[0].addEventListener('ended', () => {
+        mode = 'ambient';
+        setStatus('Audio sharing ended. Returning to ambient mode.');
+      });
+    } catch(err) {
+      setStatus('Audio capture failed or cancelled.');
+    }
+  });
+
+  document.getElementById('sim-btn').addEventListener('click', () => {
+    mode = 'ambient';
+    setStatus('Ambient mode running.');
+  });
+
+  document.getElementById('toggle-panel').addEventListener('click', () => {
+    panelEl.classList.toggle('hidden');
+    statusEl.classList.toggle('hidden');
+  });
+})();
+</script>
+</body>
+</html>
