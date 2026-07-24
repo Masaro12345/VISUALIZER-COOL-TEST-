@@ -125,7 +125,7 @@
 <script>
 (function(){
   const canvas = document.getElementById('viz-canvas');
-  // Enable alpha channel for transparency
+  // Enable alpha channel for video transparency behind bars
   const ctx = canvas.getContext('2d', { alpha: true });
   const vizWrap = document.getElementById('viz-wrap');
   const snareFlashEl = document.getElementById('snare-flash');
@@ -213,9 +213,12 @@
   document.getElementById('load-btn').addEventListener('click', loadVideoFromInput);
   inputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') loadVideoFromInput(); });
 
-  // Blue-Focused Themes
+  // Themes list including Red and White
   const THEMES = [
     { name: 'Deep Blue',      hueBase: 195, hueRange: 30, sat: 90 },
+    { name: 'Crimson Red',    hueBase: 350, hueRange: 20, sat: 95 },
+    { name: 'Pure White',     hueBase: 0,   hueRange: 0,  sat: 0,  isMonochrome: true },
+    { name: 'Ruby Glow',      hueBase: 335, hueRange: 30, sat: 85 },
     { name: 'Sapphire Glow', hueBase: 215, hueRange: 35, sat: 85 },
     { name: 'Cyan Shift',    hueBase: 180, hueRange: 25, sat: 95 },
     { name: 'Oceanic Glow',  hueBase: 170, hueRange: 45, sat: 80 },
@@ -264,17 +267,18 @@
   const particles = [];
 
   class Particle {
-    constructor(x, y, hue, power, sparkle) {
-      this.init(x, y, hue, power, sparkle);
+    constructor(x, y, hue, power, sparkle, isMono) {
+      this.init(x, y, hue, power, sparkle, isMono);
     }
-    init(x, y, hue, power, sparkle) {
+    init(x, y, hue, power, sparkle, isMono) {
       this.x = x; this.y = y;
       const angle = -Math.PI / 2 + (Math.random() - 0.5) * (sparkle ? 2.4 : 1.2);
       const speed = (sparkle ? 1 : 2) + Math.random() * (sparkle ? 3 : 6) * (0.5 + power);
       this.vx = Math.cos(angle) * speed;
       this.vy = Math.sin(angle) * speed;
       this.radius = sparkle ? (0.8 + Math.random() * 1.2) : (1.5 + Math.random() * 2.5);
-      this.hue = sparkle ? 190 : hue + (Math.random() * 12 - 6);
+      this.hue = sparkle ? (isMono ? 0 : 190) : hue + (Math.random() * 12 - 6);
+      this.isMono = isMono;
       this.sparkle = sparkle;
       this.alpha = 0.8 + Math.random() * 0.2;
       this.decay = (sparkle ? 0.04 : 0.02) + Math.random() * 0.02;
@@ -289,31 +293,35 @@
     draw(ctx) {
       if(this.alpha <= 0) return;
       ctx.globalAlpha = Math.max(0, this.alpha);
-      ctx.fillStyle = this.sparkle ? '#e0f7ff' : `hsl(${this.hue}, 95%, 75%)`;
+      if (this.isMono) {
+        ctx.fillStyle = '#ffffff';
+      } else {
+        ctx.fillStyle = this.sparkle ? '#ffffff' : `hsl(${this.hue}, 95%, 75%)`;
+      }
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  function spawnBeatParticles(barPositions, pulsePower) {
+  function spawnBeatParticles(barPositions, pulsePower, isMono) {
     if (pulsePower < 0.2) return;
     const count = Math.floor(4 + pulsePower * 8);
     for (let i = 0; i < count; i++) {
       const bar = barPositions[Math.floor(Math.random() * barPositions.length)];
       if (bar && bar.height > 10) {
         if (particles.length < MAX_PARTICLES) {
-          particles.push(new Particle(bar.x, bar.y, bar.hue, pulsePower, false));
+          particles.push(new Particle(bar.x, bar.y, bar.hue, pulsePower, false, isMono));
         }
       }
     }
   }
 
-  function spawnSparkles(power) {
+  function spawnSparkles(power, isMono) {
     const count = Math.floor(2 + power * 6);
     for (let i = 0; i < count; i++) {
       if (particles.length < MAX_PARTICLES) {
-        particles.push(new Particle(Math.random() * W, H * (0.15 + Math.random() * 0.3), 190, power, true));
+        particles.push(new Particle(Math.random() * W, H * (0.15 + Math.random() * 0.3), 0, power, true, isMono));
       }
     }
   }
@@ -347,7 +355,7 @@
   }
 
   function drawBars(values, pulse, theme) {
-    // Clear canvas instead of painting a solid background rectangle
+    // Clear canvas for video background transparency
     ctx.clearRect(0, 0, W, H);
 
     const gap = Math.max(2, W * 0.0035);
@@ -366,22 +374,30 @@
       const xRight = centerX + i * (barWidth + gap);
       const xLeft = centerX - (i + 1) * (barWidth + gap);
 
-      const hue = theme.hueBase + (i / HALF_BARS) * theme.hueRange - pulse * 8;
-      const sat = theme.sat;
-      const lightTop = 50 + v * 28 + pulse * 10;
+      let fillStyle;
+      const hue = (theme.hueBase + (i / HALF_BARS) * theme.hueRange - pulse * 8 + 360) % 360;
+
+      if (theme.isMonochrome) {
+        const brightness = Math.min(100, 70 + v * 30 + pulse * 15);
+        fillStyle = `hsl(0, 0%, ${brightness}%)`;
+      } else {
+        const sat = theme.sat;
+        const lightTop = 50 + v * 28 + pulse * 10;
+        fillStyle = `hsl(${hue}, ${sat}%, ${lightTop}%)`;
+      }
 
       if (barHeight > peakHeights[i]) peakHeights[i] = barHeight;
       else peakHeights[i] = Math.max(barHeight, peakHeights[i] - H * 0.012);
 
-      // Clean flat render
-      ctx.fillStyle = `hsl(${hue}, ${sat}%, ${lightTop}%)`;
+      // Bar render
+      ctx.fillStyle = fillStyle;
       ctx.fillRect(xRight, y, barWidth, barHeight);
       ctx.fillRect(xLeft, y, barWidth, barHeight);
 
       // Peak cap
       const capH = 2;
       const capY = H - peakHeights[i] - capH - 1;
-      ctx.fillStyle = '#d0f2ff';
+      ctx.fillStyle = '#ffffff';
       ctx.fillRect(xRight, capY, barWidth, capH);
       ctx.fillRect(xLeft, capY, barWidth, capH);
 
@@ -389,7 +405,7 @@
       activeBarPeaks.push({ x: xLeft + barWidth / 2, y, height: barHeight, hue });
     }
 
-    if (pulse > 0.15) spawnBeatParticles(activeBarPeaks, pulse);
+    if (pulse > 0.15) spawnBeatParticles(activeBarPeaks, pulse, theme.isMonochrome);
     updateAndDrawParticles();
   }
 
@@ -416,7 +432,7 @@
       renderValues[i] = Math.max(0.04, Math.min(0.85, base * 0.6 + wave + 0.05 + simulatedKick * 0.3));
     }
 
-    if (simulatedHihat > 0.5) spawnSparkles(0.5);
+    if (simulatedHihat > 0.5) spawnSparkles(0.5, currentTheme.isMonochrome);
     applyCameraPulse(simulatedKick);
     applySnareFlash(simulatedSnare);
     drawBars(renderValues, simulatedKick, currentTheme);
@@ -475,7 +491,7 @@
     }
 
     wobbleTime += 0.05;
-    if (hihatPulse > 0.4) spawnSparkles(hihatPulse);
+    if (hihatPulse > 0.4) spawnSparkles(hihatPulse, currentTheme.isMonochrome);
     applyCameraPulse(kickPulse);
     applySnareFlash(snarePulse);
 
