@@ -56,7 +56,7 @@
   }
   #panel input[type=text] {
     background: rgba(0, 150, 255, 0.08); border: 1px solid rgba(0, 210, 255, 0.25);
-    color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; width: 260px; outline: none;
+    color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; width: 220px; outline: none;
     transition: border-color 0.2s ease, background 0.2s ease;
   }
   #panel input[type=text]:focus { border-color: var(--accent); background: rgba(0, 150, 255, 0.16); }
@@ -66,8 +66,19 @@
     color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
     transition: all 0.2s ease; white-space: nowrap;
   }
-  #panel select { padding-right: 8px; background-color: #080c16; }
+  #panel select { padding-right: 8px; background-color: #080c16; max-width: 180px; }
   #panel button:hover:not(:disabled) { background: rgba(0, 210, 255, 0.22); border-color: rgba(0, 210, 255, 0.5); }
+
+  /* History & Preview styling */
+  #preview-card {
+    position: fixed; top: 140px; left: 50%; transform: translateX(-50%);
+    z-index: 12; background: rgba(6, 12, 24, 0.95); border: 1px solid var(--accent);
+    border-radius: 10px; padding: 10px; width: 280px; display: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center;
+    pointer-events: none;
+  }
+  #preview-card img { width: 100%; height: 140px; object-fit: cover; border-radius: 6px; }
+  #preview-card .title { color: #e0f2fe; font-size: 12px; margin-top: 8px; font-weight: 600; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
   #status {
     position: fixed; top: 85px; left: 50%; transform: translateX(-50%);
@@ -106,6 +117,12 @@
 <div id="vignette"></div>
 <div id="snare-flash"></div>
 
+<!-- Video Preview Card -->
+<div id="preview-card">
+  <img id="preview-img" src="" alt="Thumbnail Preview">
+  <div id="preview-title" class="title">Loading Title...</div>
+</div>
+
 <div id="viz-wrap">
   <canvas id="viz-canvas"></canvas>
 </div>
@@ -115,6 +132,9 @@
 <div id="panel">
   <input id="yt-input" type="text" placeholder="YouTube URL or video ID" aria-label="YouTube URL Input">
   <button id="load-btn">Load Video</button>
+  <select id="history-select" aria-label="Recent Videos History">
+    <option value="" disabled selected>📜 History</option>
+  </select>
   <button id="capture-btn" title="Requires screen share for tab audio">Enable Real Audio-Reactive</button>
   <button id="sim-btn">Use Ambient Mode</button>
   <select id="theme-select" aria-label="Visual theme"></select>
@@ -125,18 +145,23 @@
 <script>
 (function(){
   const canvas = document.getElementById('viz-canvas');
-  // Enable alpha channel for video transparency behind bars
   const ctx = canvas.getContext('2d', { alpha: true });
   const vizWrap = document.getElementById('viz-wrap');
   const snareFlashEl = document.getElementById('snare-flash');
 
   const inputEl = document.getElementById('yt-input');
+  const historySelectEl = document.getElementById('history-select');
+  const previewCard = document.getElementById('preview-card');
+  const previewImg = document.getElementById('preview-img');
+  const previewTitle = document.getElementById('preview-title');
+
   const statusEl = document.getElementById('status');
   const panelEl = document.getElementById('panel');
   const placeholderEl = document.getElementById('placeholder-msg');
   const themeSelectEl = document.getElementById('theme-select');
 
   let player = null;
+  let videoHistory = JSON.parse(localStorage.getItem('yt_viz_history') || '[]');
 
   function setStatus(msg) { statusEl.textContent = msg; }
 
@@ -162,6 +187,62 @@
     const fallback = cleaned.match(/([A-Za-z0-9_-]{11})/);
     return fallback ? fallback[1] : null;
   }
+
+  // Preview Fetcher using oEmbed
+  async function showPreview(id) {
+    if(!id) return hidePreview();
+    previewImg.src = `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+    previewTitle.textContent = "Fetching video title...";
+    previewCard.style.display = 'block';
+
+    try {
+      const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`);
+      const data = await res.json();
+      if(data && data.title) {
+        previewTitle.textContent = data.title;
+        return data.title;
+      }
+    } catch(e) {}
+    previewTitle.textContent = "YouTube Video";
+    return "YouTube Video";
+  }
+
+  function hidePreview() {
+    previewCard.style.display = 'none';
+  }
+
+  // History Management
+  function updateHistoryDropdown() {
+    historySelectEl.innerHTML = '<option value="" disabled selected>📜 History</option>';
+    videoHistory.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = item.title.length > 25 ? item.title.substring(0, 25) + '...' : item.title;
+      historySelectEl.appendChild(opt);
+    });
+  }
+
+  async function addToHistory(id) {
+    const title = await showPreview(id);
+    setTimeout(hidePreview, 3000); // Keep preview visible briefly
+
+    videoHistory = videoHistory.filter(item => item.id !== id);
+    videoHistory.unshift({ id, title });
+    if(videoHistory.length > 10) videoHistory.pop(); // Keep top 10
+
+    localStorage.setItem('yt_viz_history', JSON.stringify(videoHistory));
+    updateHistoryDropdown();
+  }
+
+  updateHistoryDropdown();
+
+  historySelectEl.addEventListener('change', (e) => {
+    const id = e.target.value;
+    if(id) {
+      inputEl.value = `https://youtu.be/${id}`;
+      loadVideoFromInput();
+    }
+  });
 
   function resizeVideoCover() {
     const iframe = document.querySelector('#video-stage iframe');
@@ -191,6 +272,9 @@
     const id = extractVideoId(inputEl.value);
     if(!id) return setStatus('Could not read a video ID — check the link.');
     placeholderEl.style.display = 'none';
+    
+    addToHistory(id);
+
     if(typeof YT !== 'undefined' && YT.Player) {
       if(!player) {
         player = new YT.Player('yt-player-target', {
@@ -212,6 +296,13 @@
 
   document.getElementById('load-btn').addEventListener('click', loadVideoFromInput);
   inputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') loadVideoFromInput(); });
+  
+  // Show live preview on input change/paste
+  inputEl.addEventListener('input', () => {
+    const id = extractVideoId(inputEl.value);
+    if(id) showPreview(id);
+    else hidePreview();
+  });
 
   // Themes list including Red and White
   const THEMES = [
@@ -355,7 +446,6 @@
   }
 
   function drawBars(values, pulse, theme) {
-    // Clear canvas for video background transparency
     ctx.clearRect(0, 0, W, H);
 
     const gap = Math.max(2, W * 0.0035);
@@ -389,12 +479,10 @@
       if (barHeight > peakHeights[i]) peakHeights[i] = barHeight;
       else peakHeights[i] = Math.max(barHeight, peakHeights[i] - H * 0.012);
 
-      // Bar render
       ctx.fillStyle = fillStyle;
       ctx.fillRect(xRight, y, barWidth, barHeight);
       ctx.fillRect(xLeft, y, barWidth, barHeight);
 
-      // Peak cap
       const capH = 2;
       const capY = H - peakHeights[i] - capH - 1;
       ctx.fillStyle = '#ffffff';
