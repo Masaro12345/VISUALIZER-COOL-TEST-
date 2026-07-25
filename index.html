@@ -56,7 +56,7 @@
   }
   #panel input[type=text] {
     background: rgba(0, 150, 255, 0.08); border: 1px solid rgba(0, 210, 255, 0.25);
-    color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; width: 190px; outline: none;
+    color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; width: 180px; outline: none;
     transition: border-color 0.2s ease, background 0.2s ease;
   }
   #panel input[type=text]:focus { border-color: var(--accent); background: rgba(0, 150, 255, 0.16); }
@@ -68,6 +68,8 @@
   }
   #panel select { padding-right: 6px; background-color: #080c16; }
   #panel button:hover:not(:disabled) { background: rgba(0, 210, 255, 0.22); border-color: rgba(0, 210, 255, 0.5); }
+  
+  #fav-btn.active { color: #ffd700; border-color: #ffd700; background: rgba(255, 215, 0, 0.15); }
 
   /* History & Preview styling */
   #preview-card {
@@ -131,6 +133,10 @@
 <div id="panel">
   <input id="yt-input" type="text" placeholder="YouTube URL or video ID" aria-label="YouTube URL Input">
   <button id="load-btn">Load Video</button>
+  <button id="fav-btn" title="Save current video to Favorites">⭐ Favorite</button>
+  <select id="fav-select" aria-label="Favorite Videos List">
+    <option value="" disabled selected>⭐ Favorites</option>
+  </select>
   <select id="history-select" aria-label="Recent Videos History">
     <option value="" disabled selected>📜 History</option>
   </select>
@@ -166,6 +172,8 @@
 
   const inputEl = document.getElementById('yt-input');
   const historySelectEl = document.getElementById('history-select');
+  const favSelectEl = document.getElementById('fav-select');
+  const favBtn = document.getElementById('fav-btn');
   const speedSelectEl = document.getElementById('speed-select');
   const vizStyleSelectEl = document.getElementById('viz-style-select');
   const previewCard = document.getElementById('preview-card');
@@ -180,7 +188,11 @@
   let player = null;
   let currentSpeed = 1.0;
   let vizStyle = 'bars';
+  let currentVideoId = null;
+  let currentVideoTitle = "YouTube Video";
+
   let videoHistory = JSON.parse(localStorage.getItem('yt_viz_history') || '[]');
+  let videoFavorites = JSON.parse(localStorage.getItem('yt_viz_favorites') || '[]');
 
   function setStatus(msg) { statusEl.textContent = msg; }
 
@@ -219,10 +231,12 @@
       const data = await res.json();
       if(data && data.title) {
         previewTitle.textContent = data.title;
+        currentVideoTitle = data.title;
         return data.title;
       }
     } catch(e) {}
     previewTitle.textContent = "YouTube Video";
+    currentVideoTitle = "YouTube Video";
     return "YouTube Video";
   }
 
@@ -239,6 +253,44 @@
     });
   }
 
+  // Favorites Management
+  function updateFavoritesDropdown() {
+    favSelectEl.innerHTML = '<option value="" disabled selected>⭐ Favorites</option>';
+    videoFavorites.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = item.title.length > 18 ? item.title.substring(0, 18) + '...' : item.title;
+      favSelectEl.appendChild(opt);
+    });
+    updateFavBtnState();
+  }
+
+  function updateFavBtnState() {
+    if(!currentVideoId) return;
+    const isFav = videoFavorites.some(item => item.id === currentVideoId);
+    if(isFav) {
+      favBtn.classList.add('active');
+      favBtn.textContent = '⭐ Favorited';
+    } else {
+      favBtn.classList.remove('active');
+      favBtn.textContent = '⭐ Favorite';
+    }
+  }
+
+  favBtn.addEventListener('click', () => {
+    if(!currentVideoId) return setStatus('Load a video first before adding to favorites!');
+    const index = videoFavorites.findIndex(item => item.id === currentVideoId);
+    if(index > -1) {
+      videoFavorites.splice(index, 1);
+      setStatus('Removed from Favorites');
+    } else {
+      videoFavorites.unshift({ id: currentVideoId, title: currentVideoTitle });
+      setStatus('Saved to Favorites! ⭐');
+    }
+    localStorage.setItem('yt_viz_favorites', JSON.stringify(videoFavorites));
+    updateFavoritesDropdown();
+  });
+
   async function addToHistory(id) {
     const title = await showPreview(id);
     setTimeout(hidePreview, 3000);
@@ -249,11 +301,21 @@
 
     localStorage.setItem('yt_viz_history', JSON.stringify(videoHistory));
     updateHistoryDropdown();
+    updateFavBtnState();
   }
 
   updateHistoryDropdown();
+  updateFavoritesDropdown();
 
   historySelectEl.addEventListener('change', (e) => {
+    const id = e.target.value;
+    if(id) {
+      inputEl.value = `https://youtu.be/${id}`;
+      loadVideoFromInput();
+    }
+  });
+
+  favSelectEl.addEventListener('change', (e) => {
     const id = e.target.value;
     if(id) {
       inputEl.value = `https://youtu.be/${id}`;
@@ -301,7 +363,8 @@
     const id = extractVideoId(inputEl.value);
     if(!id) return setStatus('Could not read a video ID — check the link.');
     placeholderEl.style.display = 'none';
-    
+    currentVideoId = id;
+
     addToHistory(id);
 
     if(typeof YT !== 'undefined' && YT.Player) {
@@ -524,7 +587,6 @@
     const centerY = H * 0.75;
     const amplitude = H * 0.35 * (0.6 + pulse * 0.4);
     const points = [];
-    const waveLength = 200;
 
     ctx.beginPath();
     ctx.lineWidth = 3 + pulse * 3;
