@@ -56,7 +56,7 @@
   }
   #panel input[type=text] {
     background: rgba(0, 150, 255, 0.08); border: 1px solid rgba(0, 210, 255, 0.25);
-    color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; width: 200px; outline: none;
+    color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; width: 190px; outline: none;
     transition: border-color 0.2s ease, background 0.2s ease;
   }
   #panel input[type=text]:focus { border-color: var(--accent); background: rgba(0, 150, 255, 0.16); }
@@ -134,7 +134,7 @@
   <select id="history-select" aria-label="Recent Videos History">
     <option value="" disabled selected>📜 History</option>
   </select>
-  <!-- Speed / Pitch Control -->
+  <!-- Speed Control -->
   <select id="speed-select" aria-label="Playback Speed">
     <option value="0.25">0.25x Speed</option>
     <option value="0.5">0.5x Speed</option>
@@ -144,6 +144,11 @@
     <option value="1.5">1.5x Speed</option>
     <option value="1.75">1.75x Speed</option>
     <option value="2">2.0x Speed</option>
+  </select>
+  <!-- Visualizer Mode Selector -->
+  <select id="viz-style-select" aria-label="Visualizer Style">
+    <option value="bars" selected>📊 Bars Style</option>
+    <option value="wave">🌊 Rapid Wave Style</option>
   </select>
   <button id="capture-btn" title="Requires screen share for tab audio">Enable Real Audio-Reactive</button>
   <button id="sim-btn">Use Ambient Mode</button>
@@ -162,6 +167,7 @@
   const inputEl = document.getElementById('yt-input');
   const historySelectEl = document.getElementById('history-select');
   const speedSelectEl = document.getElementById('speed-select');
+  const vizStyleSelectEl = document.getElementById('viz-style-select');
   const previewCard = document.getElementById('preview-card');
   const previewImg = document.getElementById('preview-img');
   const previewTitle = document.getElementById('preview-title');
@@ -173,6 +179,7 @@
 
   let player = null;
   let currentSpeed = 1.0;
+  let vizStyle = 'bars';
   let videoHistory = JSON.parse(localStorage.getItem('yt_viz_history') || '[]');
 
   function setStatus(msg) { statusEl.textContent = msg; }
@@ -219,9 +226,7 @@
     return "YouTube Video";
   }
 
-  function hidePreview() {
-    previewCard.style.display = 'none';
-  }
+  function hidePreview() { previewCard.style.display = 'none'; }
 
   // History Management
   function updateHistoryDropdown() {
@@ -229,7 +234,7 @@
     videoHistory.forEach(item => {
       const opt = document.createElement('option');
       opt.value = item.id;
-      opt.textContent = item.title.length > 20 ? item.title.substring(0, 20) + '...' : item.title;
+      opt.textContent = item.title.length > 18 ? item.title.substring(0, 18) + '...' : item.title;
       historySelectEl.appendChild(opt);
     });
   }
@@ -256,13 +261,16 @@
     }
   });
 
-  // Speed Handler
   speedSelectEl.addEventListener('change', (e) => {
     currentSpeed = parseFloat(e.target.value);
     if(player && typeof player.setPlaybackRate === 'function') {
       player.setPlaybackRate(currentSpeed);
       setStatus(`Playback speed set to ${currentSpeed}x`);
     }
+  });
+
+  vizStyleSelectEl.addEventListener('change', (e) => {
+    vizStyle = e.target.value;
   });
 
   function resizeVideoCover() {
@@ -368,7 +376,7 @@
   const BAR_COUNT = 96;
   const HALF_BARS = Math.floor(BAR_COUNT / 2);
 
-  let audioCtx = null, analyser = null, dataArray = null;
+  let audioCtx = null, analyser = null, dataArray = null, timeDataArray = null;
   let mode = 'ambient';
   let ambientPhase = 0;
   let wobbleTime = 0;
@@ -408,25 +416,21 @@
     draw(ctx) {
       if(this.alpha <= 0) return;
       ctx.globalAlpha = Math.max(0, this.alpha);
-      if (this.isMono) {
-        ctx.fillStyle = '#ffffff';
-      } else {
-        ctx.fillStyle = this.sparkle ? '#ffffff' : `hsl(${this.hue}, 95%, 75%)`;
-      }
+      ctx.fillStyle = this.isMono ? '#ffffff' : (this.sparkle ? '#ffffff' : `hsl(${this.hue}, 95%, 75%)`);
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  function spawnBeatParticles(barPositions, pulsePower, isMono) {
+  function spawnBeatParticles(positions, pulsePower, isMono) {
     if (pulsePower < 0.2) return;
     const count = Math.floor(4 + pulsePower * 8);
     for (let i = 0; i < count; i++) {
-      const bar = barPositions[Math.floor(Math.random() * barPositions.length)];
-      if (bar && bar.height > 10) {
+      const pos = positions[Math.floor(Math.random() * positions.length)];
+      if (pos) {
         if (particles.length < MAX_PARTICLES) {
-          particles.push(new Particle(bar.x, bar.y, bar.hue, pulsePower, false, isMono));
+          particles.push(new Particle(pos.x, pos.y, pos.hue, pulsePower, false, isMono));
         }
       }
     }
@@ -445,11 +449,8 @@
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
       p.update();
-      if (p.alpha <= 0) {
-        particles.splice(i, 1);
-      } else {
-        p.draw(ctx);
-      }
+      if (p.alpha <= 0) particles.splice(i, 1);
+      else p.draw(ctx);
     }
     ctx.globalAlpha = 1.0;
   }
@@ -469,15 +470,14 @@
     }
   }
 
+  // Draw Bars Style
   function drawBars(values, pulse, theme) {
     ctx.clearRect(0, 0, W, H);
-
     const gap = Math.max(2, W * 0.0035);
     const usableWidth = W - gap * (HALF_BARS * 2 - 1);
     const barWidth = Math.max(2, usableWidth / (HALF_BARS * 2));
     const centerX = W / 2;
     const maxBarHeight = H * 0.45;
-
     const activeBarPeaks = [];
 
     for (let i = 0; i < HALF_BARS; i++) {
@@ -492,12 +492,9 @@
       const hue = (theme.hueBase + (i / HALF_BARS) * theme.hueRange - pulse * 8 + 360) % 360;
 
       if (theme.isMonochrome) {
-        const brightness = Math.min(100, 70 + v * 30 + pulse * 15);
-        fillStyle = `hsl(0, 0%, ${brightness}%)`;
+        fillStyle = `hsl(0, 0%, ${Math.min(100, 70 + v * 30 + pulse * 15)}%)`;
       } else {
-        const sat = theme.sat;
-        const lightTop = 50 + v * 28 + pulse * 10;
-        fillStyle = `hsl(${hue}, ${sat}%, ${lightTop}%)`;
+        fillStyle = `hsl(${hue}, ${theme.sat}%, ${50 + v * 28 + pulse * 10}%)`;
       }
 
       if (barHeight > peakHeights[i]) peakHeights[i] = barHeight;
@@ -513,11 +510,60 @@
       ctx.fillRect(xRight, capY, barWidth, capH);
       ctx.fillRect(xLeft, capY, barWidth, capH);
 
-      activeBarPeaks.push({ x: xRight + barWidth / 2, y, height: barHeight, hue });
-      activeBarPeaks.push({ x: xLeft + barWidth / 2, y, height: barHeight, hue });
+      activeBarPeaks.push({ x: xRight + barWidth / 2, y, hue });
+      activeBarPeaks.push({ x: xLeft + barWidth / 2, y, hue });
     }
 
     if (pulse > 0.15) spawnBeatParticles(activeBarPeaks, pulse, theme.isMonochrome);
+    updateAndDrawParticles();
+  }
+
+  // Draw Rapid Wave Style
+  function drawWave(pulse, theme) {
+    ctx.clearRect(0, 0, W, H);
+    const centerY = H * 0.75;
+    const amplitude = H * 0.35 * (0.6 + pulse * 0.4);
+    const points = [];
+    const waveLength = 200;
+
+    ctx.beginPath();
+    ctx.lineWidth = 3 + pulse * 3;
+
+    let strokeStyle;
+    if (theme.isMonochrome) {
+      strokeStyle = `rgba(255, 255, 255, ${0.8 + pulse * 0.2})`;
+    } else {
+      strokeStyle = `hsl(${theme.hueBase}, ${theme.sat}%, ${60 + pulse * 20}%)`;
+    }
+    ctx.strokeStyle = strokeStyle;
+    ctx.shadowBlur = 12 + pulse * 15;
+    ctx.shadowColor = strokeStyle;
+
+    for (let x = 0; x <= W; x += 4) {
+      let y = centerY;
+      if (mode === 'real' && timeDataArray) {
+        const index = Math.floor((x / W) * timeDataArray.length);
+        const v = (timeDataArray[index] - 128) / 128.0;
+        y = centerY + v * amplitude;
+      } else {
+        // High-speed rapid sine wave synthesis for ambient mode
+        const fastTime = wobbleTime * 4;
+        const wave1 = Math.sin(x * 0.015 + fastTime);
+        const wave2 = Math.cos(x * 0.035 - fastTime * 1.5) * 0.5;
+        const wave3 = Math.sin(x * 0.08 + fastTime * 2) * 0.25;
+        y = centerY + (wave1 + wave2 + wave3) * amplitude * 0.4;
+      }
+
+      if (x === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+
+      if (Math.random() < 0.08) points.push({ x, y, hue: theme.hueBase });
+    }
+
+    ctx.stroke();
+    ctx.shadowBlur = 0; // Reset shadow
+
+    if (pulse > 0.15) spawnBeatParticles(points, pulse, theme.isMonochrome);
     updateAndDrawParticles();
   }
 
@@ -547,11 +593,15 @@
     if (simulatedHihat > 0.5) spawnSparkles(0.5, currentTheme.isMonochrome);
     applyCameraPulse(simulatedKick);
     applySnareFlash(simulatedSnare);
-    drawBars(renderValues, simulatedKick, currentTheme);
+
+    if (vizStyle === 'wave') drawWave(simulatedKick, currentTheme);
+    else drawBars(renderValues, simulatedKick, currentTheme);
   }
 
   function tickReal() {
     analyser.getByteFrequencyData(dataArray);
+    analyser.getByteTimeDomainData(timeDataArray);
+
     let frameMax = 0;
 
     for (let i = 0; i < HALF_BARS; i++) {
@@ -607,7 +657,8 @@
     applyCameraPulse(kickPulse);
     applySnareFlash(snarePulse);
 
-    drawBars(smoothed, kickPulse, currentTheme);
+    if (vizStyle === 'wave') drawWave(kickPulse, currentTheme);
+    else drawBars(smoothed, kickPulse, currentTheme);
   }
 
   function loop() {
@@ -634,6 +685,7 @@
       analyser.fftSize = 1024;
       analyser.smoothingTimeConstant = 0.35;
       dataArray = new Uint8Array(analyser.frequencyBinCount);
+      timeDataArray = new Uint8Array(analyser.fftSize);
       updateBinIndices(analyser.frequencyBinCount, audioCtx.sampleRate);
       source.connect(analyser);
       mode = 'real';
