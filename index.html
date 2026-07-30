@@ -56,7 +56,7 @@
   .brand-logo-svg {
     width: 32px;
     height: 32px;
-    filter: drop-shadow(0 0 6px rgba(0, 210, 255, 0.6));
+    filter: drop-shadow(0 0 6px rgba(0, 255, 170, 0.6));
   }
 
   .brand-text-wrap {
@@ -74,7 +74,7 @@
   }
 
   .brand-subtitle {
-    color: #00d2ff;
+    color: #00ffaa;
     font-size: 10px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -177,19 +177,19 @@
   <svg class="brand-logo-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="dartGrad1" x1="0%" y1="100%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#0055ff" />
+        <stop offset="0%" stop-color="#00ffaa" />
         <stop offset="100%" stop-color="#00d2ff" />
       </linearGradient>
       <linearGradient id="dartGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#7000ff" />
-        <stop offset="100%" stop-color="#00d2ff" />
+        <stop offset="0%" stop-color="#aa00ff" />
+        <stop offset="100%" stop-color="#00ffaa" />
       </linearGradient>
     </defs>
     <!-- Geometric Faceted Darthead -->
     <path d="M12 52 L52 12 L36 52 L26 38 L12 52 Z" fill="url(#dartGrad1)" />
     <path d="M52 12 L12 52 L52 36 L38 26 L52 12 Z" fill="url(#dartGrad2)" opacity="0.85" />
     <polygon points="52,12 38,26 26,38" fill="#ffffff" opacity="0.6" />
-    <circle cx="52" cy="12" r="3" fill="#00e1ff" />
+    <circle cx="52" cy="12" r="3" fill="#00ffaa" />
   </svg>
   <div class="brand-text-wrap">
     <span class="brand-title">DART VIZ</span>
@@ -496,9 +496,12 @@
     else hidePreview();
   });
 
-  // Themes list
+  // Updated Themes List including Green, Purple, and Black
   const THEMES = [
     { name: 'Deep Blue',    hueBase: 195, hueRange: 30, sat: 90 },
+    { name: 'Neon Green',   hueBase: 140, hueRange: 35, sat: 100 },
+    { name: 'Neon Purple',  hueBase: 275, hueRange: 35, sat: 95 },
+    { name: 'Void Black',   hueBase: 0,   hueRange: 0,  sat: 0,   isMonochrome: true, isBlack: true },
     { name: 'Crimson Red',   hueBase: 350, hueRange: 20, sat: 95 },
     { name: 'Pure White',   hueBase: 0,   hueRange: 0,  sat: 0,  isMonochrome: true },
     { name: 'Ruby Glow',     hueBase: 335, hueRange: 30, sat: 85 },
@@ -549,10 +552,10 @@
   const particles = [];
 
   class Particle {
-    constructor(x, y, hue, power, sparkle, isMono) {
-      this.init(x, y, hue, power, sparkle, isMono);
+    constructor(x, y, hue, power, sparkle, isMono, isBlack) {
+      this.init(x, y, hue, power, sparkle, isMono, isBlack);
     }
-    init(x, y, hue, power, sparkle, isMono) {
+    init(x, y, hue, power, sparkle, isMono, isBlack) {
       this.x = x; this.y = y;
       const angle = -Math.PI / 2 + (Math.random() - 0.5) * (sparkle ? 2.4 : 1.2);
       const speed = (sparkle ? 1 : 2) + Math.random() * (sparkle ? 3 : 6) * (0.5 + power);
@@ -561,6 +564,7 @@
       this.radius = sparkle ? (0.8 + Math.random() * 1.2) : (1.5 + Math.random() * 2.5);
       this.hue = sparkle ? (isMono ? 0 : 190) : hue + (Math.random() * 12 - 6);
       this.isMono = isMono;
+      this.isBlack = isBlack;
       this.sparkle = sparkle;
       this.alpha = 0.8 + Math.random() * 0.2;
       this.decay = (sparkle ? 0.04 : 0.02) + Math.random() * 0.02;
@@ -575,31 +579,35 @@
     draw(ctx) {
       if(this.alpha <= 0) return;
       ctx.globalAlpha = Math.max(0, this.alpha);
-      ctx.fillStyle = this.isMono ? '#ffffff' : (this.sparkle ? '#ffffff' : `hsl(${this.hue}, 95%, 75%)`);
+      if (this.isBlack) {
+        ctx.fillStyle = '#0a0d14';
+      } else {
+        ctx.fillStyle = this.isMono ? '#ffffff' : (this.sparkle ? '#ffffff' : `hsl(${this.hue}, 95%, 75%)`);
+      }
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  function spawnBeatParticles(positions, pulsePower, isMono) {
+  function spawnBeatParticles(positions, pulsePower, isMono, isBlack) {
     if (pulsePower < 0.2) return;
     const count = Math.floor(4 + pulsePower * 8);
     for (let i = 0; i < count; i++) {
       const pos = positions[Math.floor(Math.random() * positions.length)];
       if (pos) {
         if (particles.length < MAX_PARTICLES) {
-          particles.push(new Particle(pos.x, pos.y, pos.hue, pulsePower, false, isMono));
+          particles.push(new Particle(pos.x, pos.y, pos.hue, pulsePower, false, isMono, isBlack));
         }
       }
     }
   }
 
-  function spawnSparkles(power, isMono) {
+  function spawnSparkles(power, isMono, isBlack) {
     const count = Math.floor(2 + power * 6);
     for (let i = 0; i < count; i++) {
       if (particles.length < MAX_PARTICLES) {
-        particles.push(new Particle(Math.random() * W, H * (0.15 + Math.random() * 0.3), 0, power, true, isMono));
+        particles.push(new Particle(Math.random() * W, H * (0.15 + Math.random() * 0.3), 0, power, true, isMono, isBlack));
       }
     }
   }
@@ -650,7 +658,9 @@
       let fillStyle;
       const hue = (theme.hueBase + (i / HALF_BARS) * theme.hueRange - pulse * 8 + 360) % 360;
 
-      if (theme.isMonochrome) {
+      if (theme.isBlack) {
+        fillStyle = `hsl(0, 0%, ${Math.max(5, 20 - v * 15)}%)`;
+      } else if (theme.isMonochrome) {
         fillStyle = `hsl(0, 0%, ${Math.min(100, 70 + v * 30 + pulse * 15)}%)`;
       } else {
         fillStyle = `hsl(${hue}, ${theme.sat}%, ${50 + v * 28 + pulse * 10}%)`;
@@ -665,7 +675,7 @@
 
       const capH = 2;
       const capY = H - peakHeights[i] - capH - 1;
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = theme.isBlack ? '#334155' : '#ffffff';
       ctx.fillRect(xRight, capY, barWidth, capH);
       ctx.fillRect(xLeft, capY, barWidth, capH);
 
@@ -673,7 +683,7 @@
       activeBarPeaks.push({ x: xLeft + barWidth / 2, y, hue });
     }
 
-    if (pulse > 0.15) spawnBeatParticles(activeBarPeaks, pulse, theme.isMonochrome);
+    if (pulse > 0.15) spawnBeatParticles(activeBarPeaks, pulse, theme.isMonochrome, theme.isBlack);
     updateAndDrawParticles();
   }
 
@@ -688,14 +698,16 @@
     ctx.lineWidth = 3 + pulse * 3;
 
     let strokeStyle;
-    if (theme.isMonochrome) {
+    if (theme.isBlack) {
+      strokeStyle = `rgba(15, 23, 42, ${0.9 + pulse * 0.1})`;
+    } else if (theme.isMonochrome) {
       strokeStyle = `rgba(255, 255, 255, ${0.8 + pulse * 0.2})`;
     } else {
       strokeStyle = `hsl(${theme.hueBase}, ${theme.sat}%, ${60 + pulse * 20}%)`;
     }
     ctx.strokeStyle = strokeStyle;
     ctx.shadowBlur = 12 + pulse * 15;
-    ctx.shadowColor = strokeStyle;
+    ctx.shadowColor = theme.isBlack ? '#000000' : strokeStyle;
 
     for (let x = 0; x <= W; x += 4) {
       let y = centerY;
@@ -704,7 +716,6 @@
         const v = (timeDataArray[index] - 128) / 128.0;
         y = centerY + v * amplitude;
       } else {
-        // High-speed rapid sine wave synthesis for ambient mode
         const fastTime = wobbleTime * 4;
         const wave1 = Math.sin(x * 0.015 + fastTime);
         const wave2 = Math.cos(x * 0.035 - fastTime * 1.5) * 0.5;
@@ -719,9 +730,9 @@
     }
 
     ctx.stroke();
-    ctx.shadowBlur = 0; // Reset shadow
+    ctx.shadowBlur = 0;
 
-    if (pulse > 0.15) spawnBeatParticles(points, pulse, theme.isMonochrome);
+    if (pulse > 0.15) spawnBeatParticles(points, pulse, theme.isMonochrome, theme.isBlack);
     updateAndDrawParticles();
   }
 
@@ -748,7 +759,7 @@
       renderValues[i] = Math.max(0.04, Math.min(0.85, base * 0.6 + wave + 0.05 + simulatedKick * 0.3));
     }
 
-    if (simulatedHihat > 0.5) spawnSparkles(0.5, currentTheme.isMonochrome);
+    if (simulatedHihat > 0.5) spawnSparkles(0.5, currentTheme.isMonochrome, currentTheme.isBlack);
     applyCameraPulse(simulatedKick);
     applySnareFlash(simulatedSnare);
 
@@ -811,7 +822,7 @@
     }
 
     wobbleTime += 0.05;
-    if (hihatPulse > 0.4) spawnSparkles(hihatPulse, currentTheme.isMonochrome);
+    if (hihatPulse > 0.4) spawnSparkles(hihatPulse, currentTheme.isMonochrome, currentTheme.isBlack);
     applyCameraPulse(kickPulse);
     applySnareFlash(snarePulse);
 
