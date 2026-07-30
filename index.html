@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YouTube Background Visualizer with Beat Particles</title>
+<title>YouTube Background Visualizer with Beat Particles & Dart Logo</title>
 <style>
   :root {
     --bar-white: #e6f4ff;
@@ -18,6 +18,67 @@
     background: #02060f;
     overflow: hidden;
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  /* --- BRAND LOGO (Top Left Corner with Auto-Fade) --- */
+  #brand-logo-container {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    background: rgba(8, 12, 22, 0.75);
+    border: 1px solid rgba(0, 210, 255, 0.2);
+    border-radius: 12px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    pointer-events: auto;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 1.5s ease, visibility 1.5s ease, transform 0.3s ease;
+  }
+
+  #brand-logo-container:hover {
+    opacity: 1 !important;
+    visibility: visible !important;
+    border-color: rgba(0, 210, 255, 0.5);
+    transform: translateY(-2px);
+  }
+
+  #brand-logo-container.faded {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .brand-logo-svg {
+    width: 32px;
+    height: 32px;
+    filter: drop-shadow(0 0 6px rgba(0, 210, 255, 0.6));
+  }
+
+  .brand-text-wrap {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .brand-title {
+    color: #e0f2fe;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    line-height: 1.1;
+  }
+
+  .brand-subtitle {
+    color: #00d2ff;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.8;
   }
 
   #video-stage { position: fixed; inset: 0; overflow: hidden; background: #02060f; z-index: 1; }
@@ -111,6 +172,31 @@
 </head>
 <body>
 
+<!-- TOP-LEFT BRANDING LOGO CONTAINER -->
+<div id="brand-logo-container" title="Hover to view logo">
+  <svg class="brand-logo-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="dartGrad1" x1="0%" y1="100%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#0055ff" />
+        <stop offset="100%" stop-color="#00d2ff" />
+      </linearGradient>
+      <linearGradient id="dartGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#7000ff" />
+        <stop offset="100%" stop-color="#00d2ff" />
+      </linearGradient>
+    </defs>
+    <!-- Geometric Faceted Darthead -->
+    <path d="M12 52 L52 12 L36 52 L26 38 L12 52 Z" fill="url(#dartGrad1)" />
+    <path d="M52 12 L12 52 L52 36 L38 26 L52 12 Z" fill="url(#dartGrad2)" opacity="0.85" />
+    <polygon points="52,12 38,26 26,38" fill="#ffffff" opacity="0.6" />
+    <circle cx="52" cy="12" r="3" fill="#00e1ff" />
+  </svg>
+  <div class="brand-text-wrap">
+    <span class="brand-title">DART VIZ</span>
+    <span class="brand-subtitle">Audio-Visualizer</span>
+  </div>
+</div>
+
 <div id="video-stage">
   <div id="yt-player-target"></div>
   <div id="placeholder-msg">Paste a YouTube link or video ID above and hit Load<br>to set the background.</div>
@@ -165,6 +251,16 @@
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
 (function(){
+  // --- Auto-fading Logo Logic ---
+  const brandLogoContainer = document.getElementById('brand-logo-container');
+  const FADE_DELAY_MINUTES = 2; // Durasi tampil dalam menit sebelum memudar
+
+  setTimeout(() => {
+    if (brandLogoContainer) {
+      brandLogoContainer.classList.add('faded');
+    }
+  }, FADE_DELAY_MINUTES * 60 * 1000);
+
   const canvas = document.getElementById('viz-canvas');
   const ctx = canvas.getContext('2d', { alpha: true });
   const vizWrap = document.getElementById('viz-wrap');
@@ -402,10 +498,10 @@
 
   // Themes list
   const THEMES = [
-    { name: 'Deep Blue',      hueBase: 195, hueRange: 30, sat: 90 },
-    { name: 'Crimson Red',    hueBase: 350, hueRange: 20, sat: 95 },
-    { name: 'Pure White',     hueBase: 0,   hueRange: 0,  sat: 0,  isMonochrome: true },
-    { name: 'Ruby Glow',      hueBase: 335, hueRange: 30, sat: 85 },
+    { name: 'Deep Blue',    hueBase: 195, hueRange: 30, sat: 90 },
+    { name: 'Crimson Red',   hueBase: 350, hueRange: 20, sat: 95 },
+    { name: 'Pure White',   hueBase: 0,   hueRange: 0,  sat: 0,  isMonochrome: true },
+    { name: 'Ruby Glow',     hueBase: 335, hueRange: 30, sat: 85 },
     { name: 'Sapphire Glow', hueBase: 215, hueRange: 35, sat: 85 },
     { name: 'Cyan Shift',    hueBase: 180, hueRange: 25, sat: 95 },
     { name: 'Oceanic Glow',  hueBase: 170, hueRange: 45, sat: 80 },
