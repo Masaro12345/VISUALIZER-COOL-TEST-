@@ -110,7 +110,7 @@
     position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
     z-index: 10; background: var(--panel-bg); border: 1px solid var(--panel-border);
     border-radius: 12px; padding: 14px 20px;
-    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
     max-width: 95vw;
     transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
     box-shadow: 0 8px 32px rgba(0, 180, 255, 0.08);
@@ -131,6 +131,34 @@
   #panel button:hover:not(:disabled) { background: rgba(0, 210, 255, 0.22); border-color: rgba(0, 210, 255, 0.5); }
   
   #fav-btn.active { color: #ffd700; border-color: #ffd700; background: rgba(255, 215, 0, 0.15); }
+
+  /* Favorites Pagination Bar UI */
+  .fav-pagination-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0, 150, 255, 0.05);
+    border: 1px solid rgba(0, 210, 255, 0.2);
+    border-radius: 8px;
+    padding: 2px 6px;
+  }
+  .fav-pagination-group select {
+    border: none !important;
+    background: transparent !important;
+    padding: 8px 4px !important;
+  }
+  .fav-page-btn {
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+    border-radius: 6px !important;
+  }
+  .fav-page-num {
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 32px;
+    text-align: center;
+  }
 
   /* History & Preview styling */
   #preview-card {
@@ -220,9 +248,17 @@
   <input id="yt-input" type="text" placeholder="YouTube URL or video ID" aria-label="YouTube URL Input">
   <button id="load-btn">Load Video</button>
   <button id="fav-btn" title="Save current video to Favorites">⭐ Favorite</button>
-  <select id="fav-select" aria-label="Favorite Videos List">
-    <option value="" disabled selected>⭐ Favorites</option>
-  </select>
+  
+  <!-- Paginated Favorites Group -->
+  <div class="fav-pagination-group">
+    <button id="fav-prev-btn" class="fav-page-btn" title="Previous Page">◄</button>
+    <select id="fav-select" aria-label="Favorite Videos List">
+      <option value="" disabled selected>⭐ Favorites</option>
+    </select>
+    <button id="fav-next-btn" class="fav-page-btn" title="Next Page">►</button>
+    <span id="fav-page-num" class="fav-page-num">P.1/1</span>
+  </div>
+
   <select id="history-select" aria-label="Recent Videos History">
     <option value="" disabled selected>📜 History</option>
   </select>
@@ -270,6 +306,10 @@
   const historySelectEl = document.getElementById('history-select');
   const favSelectEl = document.getElementById('fav-select');
   const favBtn = document.getElementById('fav-btn');
+  const favPrevBtn = document.getElementById('fav-prev-btn');
+  const favNextBtn = document.getElementById('fav-next-btn');
+  const favPageNumEl = document.getElementById('fav-page-num');
+
   const speedSelectEl = document.getElementById('speed-select');
   const vizStyleSelectEl = document.getElementById('viz-style-select');
   const previewCard = document.getElementById('preview-card');
@@ -289,6 +329,10 @@
 
   let videoHistory = JSON.parse(localStorage.getItem('yt_viz_history') || '[]');
   let videoFavorites = JSON.parse(localStorage.getItem('yt_viz_favorites') || '[]');
+  
+  // Pagination State for Favorites
+  let favCurrentPage = 1;
+  const ITEMS_PER_PAGE = 5;
 
   function setStatus(msg) { statusEl.textContent = msg; }
 
@@ -349,17 +393,39 @@
     });
   }
 
-  // Favorites Management
+  // Favorites Management with Infinite Pagination
   function updateFavoritesDropdown() {
     favSelectEl.innerHTML = '<option value="" disabled selected>⭐ Favorites</option>';
-    videoFavorites.forEach(item => {
+    
+    const totalPages = Math.max(1, Math.ceil(videoFavorites.length / ITEMS_PER_PAGE));
+    if (favCurrentPage > totalPages) favCurrentPage = totalPages;
+    if (favCurrentPage < 1) favCurrentPage = 1;
+
+    const startIndex = (favCurrentPage - 1) * ITEMS_PER_PAGE;
+    const pageItems = videoFavorites.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    pageItems.forEach(item => {
       const opt = document.createElement('option');
       opt.value = item.id;
-      opt.textContent = item.title.length > 18 ? item.title.substring(0, 18) + '...' : item.title;
+      opt.textContent = item.title.length > 16 ? item.title.substring(0, 16) + '...' : item.title;
       favSelectEl.appendChild(opt);
     });
+
+    favPageNumEl.textContent = `P.${favCurrentPage}/${totalPages}`;
     updateFavBtnState();
   }
+
+  favPrevBtn.addEventListener('click', () => {
+    const totalPages = Math.max(1, Math.ceil(videoFavorites.length / ITEMS_PER_PAGE));
+    favCurrentPage = (favCurrentPage - 2 + totalPages) % totalPages + 1; // Infinite loop backward
+    updateFavoritesDropdown();
+  });
+
+  favNextBtn.addEventListener('click', () => {
+    const totalPages = Math.max(1, Math.ceil(videoFavorites.length / ITEMS_PER_PAGE));
+    favCurrentPage = (favCurrentPage % totalPages) + 1; // Infinite loop forward
+    updateFavoritesDropdown();
+  });
 
   function updateFavBtnState() {
     if(!currentVideoId) return;
@@ -381,6 +447,7 @@
       setStatus('Removed from Favorites');
     } else {
       videoFavorites.unshift({ id: currentVideoId, title: currentVideoTitle });
+      favCurrentPage = 1; // Jump to page 1 on new add
       setStatus('Saved to Favorites! ⭐');
     }
     localStorage.setItem('yt_viz_favorites', JSON.stringify(videoFavorites));
@@ -496,7 +563,7 @@
     else hidePreview();
   });
 
-  // Updated Themes List including Green, Purple, and Black
+  // Themes List
   const THEMES = [
     { name: 'Deep Blue',    hueBase: 195, hueRange: 30, sat: 90 },
     { name: 'Neon Green',   hueBase: 140, hueRange: 35, sat: 100 },
