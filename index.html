@@ -122,13 +122,23 @@
   }
   #panel input[type=text]:focus { border-color: var(--accent); background: rgba(0, 150, 255, 0.16); }
   #panel input[type=text]::placeholder { color: rgba(180, 220, 255, 0.4); }
+  
+  /* Select and Button Text High Contrast Fix */
   #panel button, #panel select {
-    background: rgba(0, 150, 255, 0.1); border: 1px solid rgba(0, 210, 255, 0.25);
-    color: #e0f2fe; padding: 10px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
-    transition: all 0.2s ease; white-space: nowrap;
+    background: #080d18; border: 1px solid rgba(0, 210, 255, 0.35);
+    color: #00d2ff; padding: 10px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
+    transition: all 0.2s ease; white-space: nowrap; font-weight: 600;
   }
-  #panel select { padding-right: 6px; background-color: #080c16; }
-  #panel button:hover:not(:disabled) { background: rgba(0, 210, 255, 0.22); border-color: rgba(0, 210, 255, 0.5); }
+  #panel select option {
+    background-color: #080d18 !important;
+    color: #e0f2fe !important;
+    padding: 8px;
+  }
+  #panel select option:disabled {
+    color: #00ffaa !important;
+    font-weight: bold;
+  }
+  #panel button:hover:not(:disabled) { background: rgba(0, 210, 255, 0.22); border-color: rgba(0, 210, 255, 0.6); }
   
   #fav-btn.active { color: #ffd700; border-color: #ffd700; background: rgba(255, 215, 0, 0.15); }
 
@@ -137,8 +147,8 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    background: rgba(0, 150, 255, 0.05);
-    border: 1px solid rgba(0, 210, 255, 0.2);
+    background: #080d18;
+    border: 1px solid rgba(0, 210, 255, 0.35);
     border-radius: 8px;
     padding: 2px 6px;
   }
@@ -153,10 +163,10 @@
     border-radius: 6px !important;
   }
   .fav-page-num {
-    color: var(--accent);
+    color: #00ffaa;
     font-size: 11px;
-    font-weight: 600;
-    min-width: 32px;
+    font-weight: 700;
+    min-width: 34px;
     text-align: center;
   }
 
@@ -176,7 +186,7 @@
     z-index: 10; font-size: 12px; color: var(--accent); letter-spacing: 0.02em;
     text-align: center; max-width: 520px; pointer-events: none;
     transition: opacity 0.2s ease, visibility 0.2s;
-    background: rgba(4, 14, 30, 0.75); border: 1px solid rgba(0, 210, 255, 0.15);
+    background: rgba(4, 14, 30, 0.85); border: 1px solid rgba(0, 210, 255, 0.25);
     padding: 6px 14px; border-radius: 20px;
   }
 
@@ -289,7 +299,7 @@
 (function(){
   // --- Auto-fading Logo Logic ---
   const brandLogoContainer = document.getElementById('brand-logo-container');
-  const FADE_DELAY_MINUTES = 2; // Durasi tampil dalam menit sebelum memudar
+  const FADE_DELAY_MINUTES = 2;
 
   setTimeout(() => {
     if (brandLogoContainer) {
@@ -417,13 +427,13 @@
 
   favPrevBtn.addEventListener('click', () => {
     const totalPages = Math.max(1, Math.ceil(videoFavorites.length / ITEMS_PER_PAGE));
-    favCurrentPage = (favCurrentPage - 2 + totalPages) % totalPages + 1; // Infinite loop backward
+    favCurrentPage = (favCurrentPage - 2 + totalPages) % totalPages + 1;
     updateFavoritesDropdown();
   });
 
   favNextBtn.addEventListener('click', () => {
     const totalPages = Math.max(1, Math.ceil(videoFavorites.length / ITEMS_PER_PAGE));
-    favCurrentPage = (favCurrentPage % totalPages) + 1; // Infinite loop forward
+    favCurrentPage = (favCurrentPage % totalPages) + 1;
     updateFavoritesDropdown();
   });
 
@@ -447,7 +457,7 @@
       setStatus('Removed from Favorites');
     } else {
       videoFavorites.unshift({ id: currentVideoId, title: currentVideoTitle });
-      favCurrentPage = 1; // Jump to page 1 on new add
+      favCurrentPage = 1;
       setStatus('Saved to Favorites! ⭐');
     }
     localStorage.setItem('yt_viz_favorites', JSON.stringify(videoFavorites));
