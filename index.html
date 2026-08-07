@@ -323,6 +323,10 @@
     <span id="fav-page-num" class="fav-page-num">P.1/1</span>
   </div>
 
+  <!-- EXPORT / IMPORT BUTTONS -->
+  <button id="export-list-btn" title="Copy all Favorites with links and titles to clipboard">📋 Copy List</button>
+  <button id="import-list-btn" title="Import list of video links">📥 Paste List</button>
+
   <select id="history-select" aria-label="Recent Videos History">
     <option value="" disabled selected>📜 History</option>
   </select>
@@ -379,6 +383,9 @@
   const favPrevBtn = document.getElementById('fav-prev-btn');
   const favNextBtn = document.getElementById('fav-next-btn');
   const favPageNumEl = document.getElementById('fav-page-num');
+  
+  const exportListBtn = document.getElementById('export-list-btn');
+  const importListBtn = document.getElementById('import-list-btn');
 
   const speedSelectEl = document.getElementById('speed-select');
   const vizStyleSelectEl = document.getElementById('viz-style-select');
@@ -464,7 +471,7 @@
 
   function extractVideoId(input) {
     if(!input) return null;
-    const cleaned = input.trim();
+    const cleaned = String(input).trim();
     if(/^[\w-]{11}$/.test(cleaned)) return cleaned;
     try {
       const candidate = cleaned.includes('://') ? cleaned : `https://${cleaned}`;
@@ -574,6 +581,64 @@
     }
     localStorage.setItem('yt_viz_favorites', JSON.stringify(videoFavorites));
     updateFavoritesDropdown();
+  });
+
+  // --- EXPORT & IMPORT LIST LOGIC ---
+  exportListBtn.addEventListener('click', async () => {
+    if (videoFavorites.length === 0) {
+      return setStatus('Favorites list is empty! Add videos first before copying.');
+    }
+
+    const payload = videoFavorites.map((item, index) => ({
+      index: index + 1,
+      title: item.title,
+      url: `https://youtu.be/${item.id}`,
+      id: item.id
+    }));
+
+    const jsonString = JSON.stringify(payload, null, 2);
+
+    try {
+      await navigator.clipboard.writeText(jsonString);
+      setStatus(`Copied ${videoFavorites.length} video link(s) & titles to clipboard!`);
+    } catch (err) {
+      prompt("Copy your video list below:", jsonString);
+    }
+  });
+
+  importListBtn.addEventListener('click', async () => {
+    let input = "";
+    try {
+      input = await navigator.clipboard.readText();
+    } catch (err) {
+      input = prompt("Paste your video list JSON here:");
+    }
+
+    if (!input || !input.trim()) return;
+
+    try {
+      const parsed = JSON.parse(input);
+      let importedCount = 0;
+
+      if (Array.isArray(parsed)) {
+        parsed.forEach(item => {
+          const id = item.id || extractVideoId(item.url || item);
+          const title = item.title || "YouTube Video";
+          if (id && !videoFavorites.some(fav => fav.id === id)) {
+            videoFavorites.push({ id, title });
+            importedCount++;
+          }
+        });
+
+        localStorage.setItem('yt_viz_favorites', JSON.stringify(videoFavorites));
+        updateFavoritesDropdown();
+        setStatus(`Successfully imported ${importedCount} new video(s)!`);
+      } else {
+        setStatus('Invalid format. Paste a valid JSON array.');
+      }
+    } catch (e) {
+      setStatus('Failed to parse list. Make sure it is valid text/JSON.');
+    }
   });
 
   async function addToHistory(id) {
