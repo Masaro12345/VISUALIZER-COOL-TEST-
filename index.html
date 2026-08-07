@@ -1,53 +1,318 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YouTube Background Visualizer with Time Scrubber</title>
-<style>
-  :root {
-    --bar-white: #e6f4ff;
-    --panel-bg: rgba(8, 12, 22, 0.92);
-    --panel-border: rgba(72, 160, 255, 0.25);
-    --accent: #00d2ff;
-  }
-  * { box-sizing: border-box; }
-  html, body {
-    margin: 0; padding: 0;
-    width: 100%; height: 100%;
-    background: #02060f;
-    overflow: hidden;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  }
+  <meta charset="UTF-8" />
+  <title>Canvas Visualizer with Auto-Recorder & Title Overlay</title>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      color: #fff;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
 
-  /* --- BRAND LOGO --- */
-  #brand-logo-container {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 14px;
-    background: rgba(8, 12, 22, 0.75);
-    border: 1px solid rgba(0, 210, 255, 0.2);
-    border-radius: 12px;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-    pointer-events: auto;
-    opacity: 1;
-    visibility: visible;
-    transition: opacity 1.5s ease, visibility 1.5s ease, transform 0.3s ease;
-  }
+    #container {
+      position: relative;
+      width: 1280px;
+      height: 720px;
+      background: #000;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
 
-  #brand-logo-container:hover {
-    opacity: 1 !important;
-    visibility: visible !important;
-    border-color: rgba(0, 210, 255, 0.5);
-    transform: translateY(-2px);
-  }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
 
+    .controls {
+      margin-top: 15px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      background: #222;
+      padding: 12px 20px;
+      border-radius: 8px;
+    }
+
+    button, select, input {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      background: #333;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #444;
+    }
+
+    .rec-active {
+      background: #d32f2f !important;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="container">
+    <canvas id="outputCanvas" width="1280" height="720"></canvas>
+  </div>
+
+  <div class="controls">
+    <input type="file" id="videoInput" accept="video/*" title="Upload Video Background" />
+    <input type="file" id="audioInput" accept="audio/*" title="Upload Audio Track" />
+    <input type="file" id="logoInput" accept="image/*" title="Upload Logo" />
+
+    <label>
+      Mode:
+      <select id="recMode">
+        <option value="manual">Manual</option>
+        <option value="auto">Auto (On Track Start)</option>
+      </select>
+    </label>
+
+    <button id="recBtn">Start Recording</button>
+  </div>
+
+  <!-- Hidden elements used for playback loading -->
+  <video id="bgVideo" style="display:none;" loop crossorigin="anonymous"></video>
+  <audio id="mainAudio" style="display:none;" crossorigin="anonymous"></audio>
+
+  <script>
+    // --- Configuration & Overlay Settings ---
+    const overlayConfig = {
+      title: "TRACK TITLE HERE",
+      artist: "Artist Name • Genre Phonk",
+      duration: 5, // Display pop-up duration in seconds
+      fadeIn: 0.5,
+      fadeOut: 0.5
+    };
+
+    // DOM Elements
+    const canvas = document.getElementById('outputCanvas');
+    const ctx = canvas.getContext('2d');
+    const bgVideo = document.getElementById('bgVideo');
+    const mainAudio = document.getElementById('mainAudio');
+    const recBtn = document.getElementById('recBtn');
+    const recModeSelect = document.getElementById('recMode');
+
+    let audioCtx, audioSource, analyser, audioDestination;
+    let mediaRecorder;
+    let recordedChunks = [];
+    let isRecording = false;
+    let logoImage = null;
+
+    // --- File Handlers ---
+    document.getElementById('videoInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        bgVideo.src = URL.createObjectURL(file);
+        bgVideo.play();
+      }
+    });
+
+    document.getElementById('audioInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        mainAudio.src = URL.createObjectURL(file);
+        initAudioContext();
+        
+        // Auto-start playback on selection for testing
+        mainAudio.play();
+      }
+    });
+
+    document.getElementById('logoInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        img.onload = () => { logoImage = img; };
+      }
+    });
+
+    // --- Web Audio Pipeline Setup ---
+    function initAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 128;
+
+        audioSource = audioCtx.createMediaElementSource(mainAudio);
+        audioDestination = audioCtx.createMediaStreamDestination();
+
+        // Route audio to both speakers and recorder stream
+        audioSource.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        audioSource.connect(audioDestination);
+      }
+    }
+
+    // --- Render Loop (Canvas + Pop-up Overlay) ---
+    function renderFrame() {
+      requestAnimationFrame(renderFrame);
+
+      // 1. Draw Video Background
+      if (bgVideo.readyState >= 2) {
+        ctx.drawImage(bgVideo, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // 2. Draw Audio Visualizer Bars
+      if (analyser) {
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        analyser.getByteFrequencyData(dataArray);
+
+        const barWidth = (canvas.width / bufferLength);
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+          const barHeight = (dataArray[i] / 255) * (canvas.height * 0.4);
+          ctx.fillStyle = `hsl(${i * 6}, 100%, 50%)`;
+          ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
+          x += barWidth;
+        }
+      }
+
+      // 3. Draw Title Overlay Pop-up (if within time window)
+      const currentTime = mainAudio.currentTime;
+      if (currentTime > 0 && currentTime <= overlayConfig.duration) {
+        drawTitlePopup(currentTime);
+      }
+    }
+
+    // --- Dynamic Title Card Pop-up Function ---
+    function drawTitlePopup(time) {
+      let alpha = 1;
+
+      // Handle Fade In / Fade Out math
+      if (time < overlayConfig.fadeIn) {
+        alpha = time / overlayConfig.fadeIn;
+      } else if (time > overlayConfig.duration - overlayConfig.fadeOut) {
+        alpha = (overlayConfig.duration - time) / overlayConfig.fadeOut;
+      }
+
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+
+      // Card Container Background
+      const rectX = 50, rectY = 50, rectW = 500, rectH = 100;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.beginPath();
+      ctx.roundRect(rectX, rectY, rectW, rectH, 12);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Logo Drawing
+      let textOffsetX = rectX + 20;
+      if (logoImage) {
+        ctx.drawImage(logoImage, rectX + 15, rectY + 15, 70, 70);
+        textOffsetX += 80;
+      }
+
+      // Title & Subtitle Text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 22px sans-serif';
+      ctx.fillText(overlayConfig.title, textOffsetX, rectY + 42);
+
+      ctx.fillStyle = '#cccccc';
+      ctx.font = '15px sans-serif';
+      ctx.fillText(overlayConfig.artist, textOffsetX, rectY + 70);
+
+      ctx.restore();
+    }
+
+    // --- Recording Engine ---
+    function startRecording() {
+      if (isRecording) return;
+      recordedChunks = [];
+
+      // Combine Canvas Video Stream + Analyser Audio Destination Stream
+      const canvasStream = canvas.captureStream(60);
+      const combinedTracks = [
+        ...canvasStream.getVideoTracks(),
+        ...(audioDestination ? audioDestination.stream.getAudioTracks() : [])
+      ];
+
+      const combinedStream = new MediaStream(combinedTracks);
+      mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm;codecs=vp9' });
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = exportRecordedVideo;
+
+      mediaRecorder.start();
+      isRecording = true;
+      recBtn.textContent = 'Stop Recording';
+      recBtn.classList.add('rec-active');
+    }
+
+    function stopRecording() {
+      if (!isRecording || !mediaRecorder) return;
+      mediaRecorder.stop();
+      isRecording = false;
+      recBtn.textContent = 'Start Recording';
+      recBtn.classList.remove('rec-active');
+    }
+
+    function exportRecordedVideo() {
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${overlayConfig.title.replace(/\s+/g, '_')}_Visualizer.webm`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // --- Control Event Handlers ---
+    recBtn.addEventListener('click', () => {
+      if (isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    });
+
+    // --- Auto-Record Logic ---
+    // Listens to actual track play event to bypass pre-roll buffers or ads
+    mainAudio.addEventListener('playing', () => {
+      if (recModeSelect.value === 'auto' && !isRecording) {
+        startRecording();
+      }
+    });
+
+    mainAudio.addEventListener('ended', () => {
+      if (isRecording) {
+        stopRecording();
+      }
+    });
+
+    // Start Canvas Render Loop
+    renderFrame();
+  </script>
+</body>
+</html>
   #brand-logo-container.faded {
     opacity: 0;
     visibility: hidden;
