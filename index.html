@@ -7,9 +7,13 @@
 <style>
   :root {
     --bar-white: #e6f4ff;
-    --panel-bg: rgba(8, 12, 22, 0.92);
-    --panel-border: rgba(72, 160, 255, 0.25);
+    --panel-bg: rgba(6, 10, 18, 0.88);
+    --panel-border: rgba(0, 210, 255, 0.3);
     --accent: #00d2ff;
+    --accent-glow: rgba(0, 210, 255, 0.4);
+    --accent-green: #00ffaa;
+    --text-main: #e0f2fe;
+    --text-muted: rgba(180, 220, 255, 0.6);
   }
   * { box-sizing: border-box; }
   html, body {
@@ -29,23 +33,24 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 8px 14px;
-    background: rgba(8, 12, 22, 0.75);
-    border: 1px solid rgba(0, 210, 255, 0.2);
-    border-radius: 12px;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    padding: 8px 16px;
+    background: rgba(6, 10, 18, 0.85);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6), 0 0 12px rgba(0, 210, 255, 0.15);
     pointer-events: auto;
     opacity: 1;
     visibility: visible;
-    transition: opacity 1.5s ease, visibility 1.5s ease, transform 0.3s ease;
+    transition: opacity 1.5s ease, visibility 1.5s ease, transform 0.3s ease, border-color 0.3s ease;
   }
 
   #brand-logo-container:hover {
     opacity: 1 !important;
     visibility: visible !important;
-    border-color: rgba(0, 210, 255, 0.5);
+    border-color: rgba(0, 210, 255, 0.6);
     transform: translateY(-2px);
+    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 210, 255, 0.3);
   }
 
   #brand-logo-container.faded {
@@ -56,7 +61,7 @@
   .brand-logo-svg {
     width: 32px;
     height: 32px;
-    filter: drop-shadow(0 0 6px rgba(0, 255, 170, 0.6));
+    filter: drop-shadow(0 0 8px rgba(0, 255, 170, 0.8));
   }
 
   .brand-text-wrap {
@@ -66,32 +71,39 @@
   }
 
   .brand-title {
-    color: #e0f2fe;
+    color: var(--text-main);
     font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
+    font-weight: 800;
+    letter-spacing: 0.08em;
     line-height: 1.1;
+    text-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
   }
 
   .brand-subtitle {
-    color: #00ffaa;
+    color: var(--accent-green);
     font-size: 10px;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    opacity: 0.8;
+    font-weight: 600;
+    opacity: 0.9;
   }
 
   #video-stage { position: fixed; inset: 0; overflow: hidden; background: #02060f; z-index: 1; }
   #video-stage iframe { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; border: 0; }
   #placeholder-msg {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    z-index: 2; color: rgba(180, 220, 255, 0.6); font-size: 15px; letter-spacing: 0.03em;
+    z-index: 2; color: var(--text-muted); font-size: 15px; letter-spacing: 0.04em;
     text-align: center; max-width: 420px; line-height: 1.6;
+    background: rgba(6, 10, 18, 0.6);
+    padding: 20px 30px;
+    border-radius: 16px;
+    border: 1px dashed rgba(0, 210, 255, 0.2);
+    backdrop-filter: blur(8px);
   }
   #vignette {
     position: fixed; inset: 0; z-index: 2; pointer-events: none;
-    background: radial-gradient(circle at center, rgba(2,6,15,0) 40%, rgba(2,6,15,0.7) 100%),
-                linear-gradient(to top, rgba(2,6,15,0.9) 0%, rgba(2,6,15,0.3) 30%, rgba(2,6,15,0) 60%);
+    background: radial-gradient(circle at center, rgba(2,6,15,0) 35%, rgba(2,6,15,0.75) 100%),
+                linear-gradient(to top, rgba(2,6,15,0.95) 0%, rgba(2,6,15,0.3) 30%, rgba(2,6,15,0) 60%);
   }
 
   #viz-wrap {
@@ -105,88 +117,130 @@
   }
   #viz-canvas { width: 100%; height: 100%; display: block; }
 
+  /* --- CONTROL PANEL --- */
   #panel {
     position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-    z-index: 10; background: var(--panel-bg); border: 1px solid var(--panel-border);
-    border-radius: 12px; padding: 14px 20px;
-    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    z-index: 10; 
+    background: var(--panel-bg); 
+    border: 1px solid var(--panel-border);
+    border-radius: 16px; 
+    padding: 16px 22px;
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
     max-width: 95vw;
-    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
-    box-shadow: 0 8px 32px rgba(0, 180, 255, 0.08);
+    backdrop-filter: blur(16px);
+    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 210, 255, 0.12);
   }
+
   #panel input[type=text] {
-    background: rgba(0, 150, 255, 0.08); border: 1px solid rgba(0, 210, 255, 0.25);
-    color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; width: 180px; outline: none;
-    transition: border-color 0.2s ease, background 0.2s ease;
+    background: rgba(0, 180, 255, 0.06); 
+    border: 1px solid rgba(0, 210, 255, 0.3);
+    color: var(--text-main); 
+    padding: 10px 14px; 
+    border-radius: 10px; 
+    font-size: 13px; 
+    width: 200px; 
+    outline: none;
+    transition: all 0.25s ease;
   }
-  #panel input[type=text]:focus { border-color: var(--accent); background: rgba(0, 150, 255, 0.16); }
-  #panel input[type=text]::placeholder { color: rgba(180, 220, 255, 0.4); }
+  #panel input[type=text]:focus { 
+    border-color: var(--accent); 
+    background: rgba(0, 180, 255, 0.12); 
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+  #panel input[type=text]::placeholder { color: var(--text-muted); }
   
   #panel button, #panel select {
-    background: #080d18; border: 1px solid rgba(0, 210, 255, 0.35);
-    color: #00d2ff; padding: 10px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
-    transition: all 0.2s ease; white-space: nowrap; font-weight: 600;
+    background: rgba(8, 14, 26, 0.9); 
+    border: 1px solid rgba(0, 210, 255, 0.35);
+    color: var(--accent); 
+    padding: 10px 14px; 
+    border-radius: 10px; 
+    font-size: 13px; 
+    cursor: pointer;
+    transition: all 0.25s ease; 
+    white-space: nowrap; 
+    font-weight: 600;
+    outline: none;
   }
   #panel select option {
-    background-color: #080d18 !important;
-    color: #e0f2fe !important;
-    padding: 8px;
+    background-color: #060a12 !important;
+    color: var(--text-main) !important;
+    padding: 10px;
   }
   #panel select option:disabled {
-    color: #00ffaa !important;
+    color: var(--accent-green) !important;
     font-weight: bold;
   }
-  #panel button:hover:not(:disabled) { background: rgba(0, 210, 255, 0.22); border-color: rgba(0, 210, 255, 0.6); }
+  #panel button:hover:not(:disabled), #panel select:hover { 
+    background: rgba(0, 210, 255, 0.18); 
+    border-color: rgba(0, 210, 255, 0.7); 
+    color: #ffffff;
+    box-shadow: 0 0 12px var(--accent-glow);
+    transform: translateY(-1px);
+  }
   
-  #fav-btn.active { color: #ffd700; border-color: #ffd700; background: rgba(255, 215, 0, 0.15); }
+  #fav-btn.active { 
+    color: #ffd700; 
+    border-color: #ffd700; 
+    background: rgba(255, 215, 0, 0.15); 
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+  }
 
   .fav-pagination-group {
     display: flex;
     align-items: center;
     gap: 4px;
-    background: #080d18;
+    background: rgba(8, 14, 26, 0.9);
     border: 1px solid rgba(0, 210, 255, 0.35);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 2px 6px;
   }
   .fav-pagination-group select {
     border: none !important;
     background: transparent !important;
     padding: 8px 4px !important;
+    box-shadow: none !important;
   }
   .fav-page-btn {
     padding: 6px 8px !important;
     font-size: 11px !important;
     border-radius: 6px !important;
+    border: none !important;
+    background: rgba(0, 210, 255, 0.1) !important;
+  }
+  .fav-page-btn:hover {
+    background: rgba(0, 210, 255, 0.3) !important;
   }
   .fav-page-num {
-    color: #00ffaa;
+    color: var(--accent-green);
     font-size: 11px;
     font-weight: 700;
-    min-width: 34px;
+    min-width: 36px;
     text-align: center;
   }
 
-  /* --- TIME SCRUBBER CONTAINER --- */
+  /* --- TIME SCRUBBER --- */
   .scrubber-group {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     width: 100%;
-    margin-top: 6px;
-    padding: 4px 8px;
-    background: rgba(0, 210, 255, 0.05);
-    border: 1px solid rgba(0, 210, 255, 0.15);
-    border-radius: 8px;
+    margin-top: 8px;
+    padding: 6px 12px;
+    background: rgba(0, 210, 255, 0.04);
+    border: 1px solid rgba(0, 210, 255, 0.2);
+    border-radius: 10px;
   }
   
   .scrubber-time {
-    font-size: 11px;
-    color: #00ffaa;
-    font-weight: 600;
-    min-width: 45px;
+    font-size: 12px;
+    color: var(--accent-green);
+    font-weight: 700;
+    min-width: 48px;
     text-align: center;
     font-family: monospace;
+    text-shadow: 0 0 6px rgba(0, 255, 170, 0.4);
   }
 
   #time-slider {
@@ -194,44 +248,67 @@
     -webkit-appearance: none;
     appearance: none;
     height: 6px;
-    background: rgba(0, 210, 255, 0.2);
+    background: rgba(0, 210, 255, 0.18);
     border-radius: 3px;
     outline: none;
     cursor: pointer;
+    transition: background 0.2s ease;
   }
 
   #time-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
+    box-shadow: 0 0 10px var(--accent), 0 0 18px var(--accent);
     cursor: pointer;
-    transition: transform 0.1s ease;
+    transition: transform 0.15s ease, background-color 0.15s ease;
   }
 
   #time-slider::-webkit-slider-thumb:hover {
-    transform: scale(1.2);
+    transform: scale(1.25);
+    background: #ffffff;
   }
 
   #preview-card {
-    position: fixed; top: 180px; left: 50%; transform: translateX(-50%);
-    z-index: 12; background: rgba(6, 12, 24, 0.95); border: 1px solid var(--accent);
-    border-radius: 10px; padding: 10px; width: 280px; display: none;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center;
+    position: fixed; top: 185px; left: 50%; transform: translateX(-50%);
+    z-index: 12; 
+    background: rgba(6, 10, 18, 0.95); 
+    border: 1px solid var(--accent);
+    border-radius: 12px; 
+    padding: 12px; 
+    width: 290px; 
+    display: none;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.9), 0 0 15px rgba(0, 210, 255, 0.3); 
+    text-align: center;
     pointer-events: none;
+    backdrop-filter: blur(12px);
   }
-  #preview-card img { width: 100%; height: 140px; object-fit: cover; border-radius: 6px; }
-  #preview-card .title { color: #e0f2fe; font-size: 12px; margin-top: 8px; font-weight: 600; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  #preview-card img { width: 100%; height: 145px; object-fit: cover; border-radius: 8px; }
+  #preview-card .title { 
+    color: var(--text-main); 
+    font-size: 12px; 
+    margin-top: 10px; 
+    font-weight: 600; 
+    line-height: 1.35; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    display: -webkit-box; 
+    -webkit-line-clamp: 2; 
+    -webkit-box-orient: vertical; 
+  }
 
   #status {
-    position: fixed; top: 125px; left: 50%; transform: translateX(-50%);
-    z-index: 10; font-size: 12px; color: var(--accent); letter-spacing: 0.02em;
+    position: fixed; top: 135px; left: 50%; transform: translateX(-50%);
+    z-index: 10; font-size: 12px; color: var(--accent); letter-spacing: 0.03em;
     text-align: center; max-width: 520px; pointer-events: auto;
-    background: rgba(4, 14, 30, 0.85); border: 1px solid rgba(0, 210, 255, 0.25);
-    padding: 6px 14px; border-radius: 20px;
+    background: rgba(6, 10, 18, 0.9); 
+    border: 1px solid rgba(0, 210, 255, 0.35);
+    padding: 8px 18px; border-radius: 20px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 10px rgba(0, 210, 255, 0.15);
     opacity: 1;
     visibility: visible;
     transition: opacity 1.2s ease, visibility 1.2s ease;
@@ -249,13 +326,22 @@
 
   #toggle-panel {
     position: fixed; top: 20px; right: 20px; z-index: 11;
-    background: var(--panel-bg); border: 1px solid var(--panel-border);
-    color: #e0f2fe; width: 40px; height: 40px; border-radius: 50%;
+    background: var(--panel-bg); 
+    border: 1px solid var(--panel-border);
+    color: var(--text-main); 
+    width: 42px; height: 42px; border-radius: 50%;
     cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s ease;
+    backdrop-filter: blur(12px);
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   }
-  #toggle-panel:hover { background: rgba(0, 210, 255, 0.2); }
-  #panel.hidden { opacity: 0; visibility: hidden; transform: translateX(-50%) translateY(-10px); }
+  #toggle-panel:hover { 
+    background: rgba(0, 210, 255, 0.25); 
+    border-color: var(--accent);
+    box-shadow: 0 0 15px var(--accent-glow);
+    transform: scale(1.05);
+  }
+  #panel.hidden { opacity: 0; visibility: hidden; transform: translateX(-50%) translateY(-12px); }
   #status.hidden { display: none; }
 
   #snare-flash {
@@ -323,13 +409,14 @@
     <span id="fav-page-num" class="fav-page-num">P.1/1</span>
   </div>
 
-  <!-- EXPORT / IMPORT BUTTONS -->
-  <button id="export-list-btn" title="Copy all Favorites with links and titles to clipboard">📋 Copy List</button>
-  <button id="import-list-btn" title="Import list of video links">📥 Paste List</button>
+  <button id="copy-fav-btn" title="Copy favorites list">📋 Copy List</button>
+  <button id="paste-fav-btn" title="Paste favorites list">📌 Paste List</button>
 
   <select id="history-select" aria-label="Recent Videos History">
     <option value="" disabled selected>📜 History</option>
   </select>
+
+  <!-- RESTORED SPEED SELECT DROPDOWN -->
   <select id="speed-select" aria-label="Playback Speed">
     <option value="0.25">0.25x Speed</option>
     <option value="0.5">0.5x Speed</option>
@@ -340,6 +427,7 @@
     <option value="1.75">1.75x Speed</option>
     <option value="2">2.0x Speed</option>
   </select>
+
   <select id="viz-style-select" aria-label="Visualizer Style">
     <option value="bars" selected>📊 Bars Style</option>
     <option value="wave">🌊 Rapid Wave Style</option>
@@ -383,9 +471,9 @@
   const favPrevBtn = document.getElementById('fav-prev-btn');
   const favNextBtn = document.getElementById('fav-next-btn');
   const favPageNumEl = document.getElementById('fav-page-num');
-  
-  const exportListBtn = document.getElementById('export-list-btn');
-  const importListBtn = document.getElementById('import-list-btn');
+
+  const copyFavBtn = document.getElementById('copy-fav-btn');
+  const pasteFavBtn = document.getElementById('paste-fav-btn');
 
   const speedSelectEl = document.getElementById('speed-select');
   const vizStyleSelectEl = document.getElementById('viz-style-select');
@@ -471,7 +559,7 @@
 
   function extractVideoId(input) {
     if(!input) return null;
-    const cleaned = String(input).trim();
+    const cleaned = input.trim();
     if(/^[\w-]{11}$/.test(cleaned)) return cleaned;
     try {
       const candidate = cleaned.includes('://') ? cleaned : `https://${cleaned}`;
@@ -556,6 +644,34 @@
     updateFavoritesDropdown();
   });
 
+  copyFavBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(videoFavorites, null, 2));
+      setStatus('Favorites list copied to clipboard!');
+    } catch (e) {
+      setStatus('Failed to copy list.');
+    }
+  });
+
+  pasteFavBtn.addEventListener('click', () => {
+    const input = prompt('Paste your Favorites JSON list here:');
+    if (!input) return;
+    try {
+      const parsed = JSON.parse(input);
+      if (Array.isArray(parsed)) {
+        videoFavorites = parsed;
+        localStorage.setItem('yt_viz_favorites', JSON.stringify(videoFavorites));
+        favCurrentPage = 1;
+        updateFavoritesDropdown();
+        setStatus('Favorites list updated!');
+      } else {
+        setStatus('Invalid list format.');
+      }
+    } catch (e) {
+      setStatus('Failed to parse JSON input.');
+    }
+  });
+
   function updateFavBtnState() {
     if(!currentVideoId) return;
     const isFav = videoFavorites.some(item => item.id === currentVideoId);
@@ -581,64 +697,6 @@
     }
     localStorage.setItem('yt_viz_favorites', JSON.stringify(videoFavorites));
     updateFavoritesDropdown();
-  });
-
-  // --- EXPORT & IMPORT LIST LOGIC ---
-  exportListBtn.addEventListener('click', async () => {
-    if (videoFavorites.length === 0) {
-      return setStatus('Favorites list is empty! Add videos first before copying.');
-    }
-
-    const payload = videoFavorites.map((item, index) => ({
-      index: index + 1,
-      title: item.title,
-      url: `https://youtu.be/${item.id}`,
-      id: item.id
-    }));
-
-    const jsonString = JSON.stringify(payload, null, 2);
-
-    try {
-      await navigator.clipboard.writeText(jsonString);
-      setStatus(`Copied ${videoFavorites.length} video link(s) & titles to clipboard!`);
-    } catch (err) {
-      prompt("Copy your video list below:", jsonString);
-    }
-  });
-
-  importListBtn.addEventListener('click', async () => {
-    let input = "";
-    try {
-      input = await navigator.clipboard.readText();
-    } catch (err) {
-      input = prompt("Paste your video list JSON here:");
-    }
-
-    if (!input || !input.trim()) return;
-
-    try {
-      const parsed = JSON.parse(input);
-      let importedCount = 0;
-
-      if (Array.isArray(parsed)) {
-        parsed.forEach(item => {
-          const id = item.id || extractVideoId(item.url || item);
-          const title = item.title || "YouTube Video";
-          if (id && !videoFavorites.some(fav => fav.id === id)) {
-            videoFavorites.push({ id, title });
-            importedCount++;
-          }
-        });
-
-        localStorage.setItem('yt_viz_favorites', JSON.stringify(videoFavorites));
-        updateFavoritesDropdown();
-        setStatus(`Successfully imported ${importedCount} new video(s)!`);
-      } else {
-        setStatus('Invalid format. Paste a valid JSON array.');
-      }
-    } catch (e) {
-      setStatus('Failed to parse list. Make sure it is valid text/JSON.');
-    }
   });
 
   async function addToHistory(id) {
