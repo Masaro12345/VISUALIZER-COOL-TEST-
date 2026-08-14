@@ -342,7 +342,8 @@
   </select>
   <select id="viz-style-select" aria-label="Visualizer Style">
     <option value="bars" selected>📊 Bars Style</option>
-    <option value="wave">🌊 Rapid Wave Style</option>
+    <option value="wave">⚡ Rapid Wave Style</option>
+    <option value="sea_wave">🌊 Sea Waves Style</option>
     <option value="radial">💫 Radial Ring Style</option>
   </select>
   <button id="capture-btn" title="Requires screen share for tab audio">Enable Real Audio-Reactive</button>
@@ -987,6 +988,77 @@
     updateAndDrawParticles();
   }
 
+  // --- NEW: GENTLE SEA WAVES STYLE ---
+  function drawSeaWave(values, pulse, theme) {
+    ctx.clearRect(0, 0, W, H);
+    
+    const centerY = H * 0.72;
+    const baseAmp = Math.max(30, H * 0.08);
+    const swellAmp = baseAmp + (pulse * Math.max(50, H * 0.12));
+    const speed = wobbleTime * 0.6; // Gentle ocean motion
+
+    // 3 overlapping transparent wave layers
+    const layers = [
+      { opacity: 0.35, freq: 0.004, speedMult: 0.5, yOffset: 18, ampMult: 0.8 },
+      { opacity: 0.55, freq: 0.007, speedMult: -0.7, yOffset: 6, ampMult: 1.0 },
+      { opacity: 0.90, freq: 0.005, speedMult: 1.0, yOffset: -8, ampMult: 1.25 }
+    ];
+
+    const activePoints = [];
+
+    layers.forEach((layer, lIdx) => {
+      ctx.beginPath();
+      let strokeStyle, fillStyle;
+
+      const hue = (theme.hueBase + lIdx * 12 + 360) % 360;
+      if (theme.isBlack) {
+        strokeStyle = `rgba(30, 41, 59, ${layer.opacity})`;
+        fillStyle = `rgba(15, 23, 42, ${layer.opacity * 0.5})`;
+      } else if (theme.isMonochrome) {
+        strokeStyle = `rgba(255, 255, 255, ${layer.opacity})`;
+        fillStyle = `rgba(220, 220, 220, ${layer.opacity * 0.15})`;
+      } else {
+        strokeStyle = `hsla(${hue}, ${theme.sat}%, ${60 + pulse * 15}%, ${layer.opacity})`;
+        fillStyle = `hsla(${hue}, ${theme.sat}%, 35%, ${layer.opacity * 0.25})`;
+      }
+
+      ctx.lineWidth = 2.5 + pulse * 2;
+      ctx.strokeStyle = strokeStyle;
+      ctx.fillStyle = fillStyle;
+
+      ctx.moveTo(0, H); // Start path from bottom left corner
+
+      for (let x = 0; x <= W; x += 6) {
+        const t = speed * layer.speedMult;
+        const sineWave1 = Math.sin(x * layer.freq + t);
+        const sineWave2 = Math.cos(x * layer.freq * 1.6 - t * 0.8) * 0.45;
+
+        // Extract audio frequency swell if available
+        let audioSwell = 0;
+        if (values) {
+          const sampleIdx = Math.floor((x / W) * (HALF_BARS / 2));
+          audioSwell = (values[sampleIdx] || 0) * Math.max(35, H * 0.08);
+        }
+
+        const y = centerY + layer.yOffset + (sineWave1 + sineWave2) * swellAmp * layer.ampMult - audioSwell;
+
+        ctx.lineTo(x, y);
+
+        if (lIdx === 2 && Math.random() < 0.05) {
+          activePoints.push({ x, y, hue });
+        }
+      }
+
+      ctx.lineTo(W, H); // Connect path to bottom right
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    });
+
+    if (pulse > 0.15) spawnBeatParticles(activePoints, pulse * 0.7, theme.isMonochrome, theme.isBlack);
+    updateAndDrawParticles();
+  }
+
   function drawRadial(values, pulse, theme) {
     ctx.clearRect(0, 0, W, H);
     const centerX = W / 2;
@@ -1082,6 +1154,7 @@
     applySnareFlash(simulatedSnare);
 
     if (vizStyle === 'wave') drawWave(simulatedKick, currentTheme);
+    else if (vizStyle === 'sea_wave') drawSeaWave(renderValues, simulatedKick, currentTheme);
     else if (vizStyle === 'radial') drawRadial(renderValues, simulatedKick, currentTheme);
     else drawBars(renderValues, simulatedKick, currentTheme);
   }
@@ -1143,6 +1216,7 @@
     applySnareFlash(snarePulse);
 
     if (vizStyle === 'wave') drawWave(kickPulse, currentTheme);
+    else if (vizStyle === 'sea_wave') drawSeaWave(smoothed, kickPulse, currentTheme);
     else if (vizStyle === 'radial') drawRadial(smoothed, kickPulse, currentTheme);
     else drawBars(smoothed, kickPulse, currentTheme);
   }
