@@ -323,7 +323,6 @@
     <span id="fav-page-num" class="fav-page-num">P.1/1</span>
   </div>
 
-  <!-- EXPORT / IMPORT BUTTONS -->
   <button id="export-list-btn" title="Copy all Favorites with links and titles to clipboard">📋 Copy List</button>
   <button id="import-list-btn" title="Import list of video links">📥 Paste List</button>
 
@@ -584,7 +583,6 @@
     updateFavoritesDropdown();
   });
 
-  // --- EXPORT & IMPORT LIST LOGIC ---
   exportListBtn.addEventListener('click', async () => {
     if (videoFavorites.length === 0) {
       return setStatus('Favorites list is empty! Add videos first before copying.');
@@ -988,16 +986,44 @@
     updateAndDrawParticles();
   }
 
-  // --- NEW: GENTLE SEA WAVES STYLE ---
+  // --- TSUNAMI BEAT KICK SYSTEM ---
+  const tsunamiPulses = [];
+  let isKickTriggered = false;
+
+  function processTsunamiKick(pulse) {
+    if (pulse > 0.65 && !isKickTriggered) {
+      tsunamiPulses.push({
+        dist: 0,
+        maxAmp: Math.max(120, H * 0.28),
+        speed: W * 0.014,
+        alpha: 1.0
+      });
+      isKickTriggered = true;
+    } else if (pulse < 0.35) {
+      isKickTriggered = false;
+    }
+
+    for (let i = tsunamiPulses.length - 1; i >= 0; i--) {
+      const p = tsunamiPulses[i];
+      p.dist += p.speed;
+      p.alpha -= 0.016;
+      if (p.alpha <= 0 || p.dist > W * 0.65) {
+        tsunamiPulses.splice(i, 1);
+      }
+    }
+  }
+
+  // --- GENTLE SEA WAVES STYLE WITH TSUNAMI KICK SURGE ---
   function drawSeaWave(values, pulse, theme) {
     ctx.clearRect(0, 0, W, H);
     
-    const centerY = H * 0.72;
-    const baseAmp = Math.max(30, H * 0.08);
-    const swellAmp = baseAmp + (pulse * Math.max(50, H * 0.12));
-    const speed = wobbleTime * 0.6; // Gentle ocean motion
+    processTsunamiKick(pulse);
 
-    // 3 overlapping transparent wave layers
+    const centerY = H * 0.72;
+    const baseAmp = Math.max(25, H * 0.06);
+    const swellAmp = baseAmp + (pulse * Math.max(40, H * 0.09));
+    const speed = wobbleTime * 0.6;
+
     const layers = [
       { opacity: 0.35, freq: 0.004, speedMult: 0.5, yOffset: 18, ampMult: 0.8 },
       { opacity: 0.55, freq: 0.007, speedMult: -0.7, yOffset: 6, ampMult: 1.0 },
@@ -1005,6 +1031,7 @@
     ];
 
     const activePoints = [];
+    const centerX = W / 2;
 
     layers.forEach((layer, lIdx) => {
       ctx.beginPath();
@@ -1026,21 +1053,33 @@
       ctx.strokeStyle = strokeStyle;
       ctx.fillStyle = fillStyle;
 
-      ctx.moveTo(0, H); // Start path from bottom left corner
+      ctx.moveTo(0, H);
 
       for (let x = 0; x <= W; x += 6) {
         const t = speed * layer.speedMult;
         const sineWave1 = Math.sin(x * layer.freq + t);
         const sineWave2 = Math.cos(x * layer.freq * 1.6 - t * 0.8) * 0.45;
 
-        // Extract audio frequency swell if available
         let audioSwell = 0;
         if (values) {
           const sampleIdx = Math.floor((x / W) * (HALF_BARS / 2));
-          audioSwell = (values[sampleIdx] || 0) * Math.max(35, H * 0.08);
+          audioSwell = (values[sampleIdx] || 0) * Math.max(30, H * 0.06);
         }
 
-        const y = centerY + layer.yOffset + (sineWave1 + sineWave2) * swellAmp * layer.ampMult - audioSwell;
+        // Calculate Outward-Splitting Tsunami Height
+        let tsunamiSwell = 0;
+        const distFromCenter = Math.abs(x - centerX);
+        for (let pIdx = 0; pIdx < tsunamiPulses.length; pIdx++) {
+          const tp = tsunamiPulses[pIdx];
+          const diff = Math.abs(distFromCenter - tp.dist);
+          const waveWidth = 100;
+          if (diff < waveWidth) {
+            const waveShape = Math.cos((diff / waveWidth) * (Math.PI / 2));
+            tsunamiSwell += waveShape * tp.maxAmp * tp.alpha;
+          }
+        }
+
+        const y = centerY + layer.yOffset + (sineWave1 + sineWave2) * swellAmp * layer.ampMult - audioSwell - (tsunamiSwell * layer.ampMult);
 
         ctx.lineTo(x, y);
 
@@ -1049,7 +1088,7 @@
         }
       }
 
-      ctx.lineTo(W, H); // Connect path to bottom right
+      ctx.lineTo(W, H);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
