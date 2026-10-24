@@ -3,312 +3,111 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YouTube Background Visualizer with Time Scrubber</title>
+<title>DART VIZ - Ultimate Audio Visualizer</title>
 <style>
-  :root {
-    --bar-white: #e6f4ff;
-    --panel-bg: rgba(8, 12, 22, 0.92);
-    --panel-border: rgba(72, 160, 255, 0.25);
-    --accent: #00d2ff;
-  }
-  * { box-sizing: border-box; }
-  html, body {
-    margin: 0; padding: 0;
-    width: 100%; height: 100%;
-    background: #02060f;
-    overflow: hidden;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  }
-
-  /* --- BRAND LOGO --- */
-  #brand-logo-container {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 14px;
-    background: rgba(8, 12, 22, 0.75);
-    border: 1px solid rgba(0, 210, 255, 0.2);
-    border-radius: 12px;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-    pointer-events: auto;
-    opacity: 1;
-    visibility: visible;
-    transition: opacity 1.5s ease, visibility 1.5s ease, transform 0.3s ease;
-  }
-
-  #brand-logo-container:hover {
-    opacity: 1 !important;
-    visibility: visible !important;
-    border-color: rgba(0, 210, 255, 0.5);
-    transform: translateY(-2px);
-  }
-
-  #brand-logo-container.faded {
-    opacity: 0;
-    visibility: hidden;
-  }
-
-  .brand-logo-svg {
-    width: 32px;
-    height: 32px;
-    filter: drop-shadow(0 0 6px rgba(0, 255, 170, 0.6));
-  }
-
-  .brand-text-wrap {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  .brand-title {
-    color: #e0f2fe;
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    line-height: 1.1;
-  }
-
-  .brand-subtitle {
-    color: #00ffaa;
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    opacity: 0.8;
-  }
-
-  #video-stage { position: fixed; inset: 0; overflow: hidden; background: #02060f; z-index: 1; }
-  #video-stage iframe { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; border: 0; }
-  #placeholder-msg {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    z-index: 2; color: rgba(180, 220, 255, 0.6); font-size: 15px; letter-spacing: 0.03em;
-    text-align: center; max-width: 420px; line-height: 1.6;
-  }
-  #vignette {
-    position: fixed; inset: 0; z-index: 2; pointer-events: none;
-    background: radial-gradient(circle at center, rgba(2,6,15,0) 40%, rgba(2,6,15,0.7) 100%),
-                linear-gradient(to top, rgba(2,6,15,0.9) 0%, rgba(2,6,15,0.3) 30%, rgba(2,6,15,0) 60%);
-  }
-
-  #viz-wrap {
-    position: fixed;
-    inset: 0;
-    z-index: 4;
-    width: 100vw;
-    height: 100vh;
-    pointer-events: none;
-    will-change: transform;
-  }
-  #viz-canvas { width: 100%; height: 100%; display: block; }
-
-  /* --- CONTROL PANEL WITH SCROLLABLE CONTAINER --- */
-  #panel {
-    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-    z-index: 10; background: var(--panel-bg); border: 1px solid var(--panel-border);
-    border-radius: 12px; padding: 14px 20px;
-    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-    max-width: 95vw;
-    max-height: calc(100vh - 40px);
-    overflow-y: auto;
-    overflow-x: hidden;
-    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
-    box-shadow: 0 8px 32px rgba(0, 180, 255, 0.08);
-  }
-
-  /* Custom Scrollbar for Tight Screens */
-  #panel::-webkit-scrollbar {
-    width: 6px;
-  }
-  #panel::-webkit-scrollbar-track {
-    background: rgba(0, 210, 255, 0.05);
-    border-radius: 4px;
-  }
-  #panel::-webkit-scrollbar-thumb {
-    background: rgba(0, 210, 255, 0.35);
-    border-radius: 4px;
-  }
-  #panel::-webkit-scrollbar-thumb:hover {
-    background: var(--accent);
-  }
-
-  #panel input[type=text] {
-    background: rgba(0, 150, 255, 0.08); border: 1px solid rgba(0, 210, 255, 0.25);
-    color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; width: 180px; outline: none;
-    transition: border-color 0.2s ease, background 0.2s ease;
-  }
-  #panel input[type=text]:focus { border-color: var(--accent); background: rgba(0, 150, 255, 0.16); }
-  #panel input[type=text]::placeholder { color: rgba(180, 220, 255, 0.4); }
-  
-  #panel button, #panel select {
-    background: #080d18; border: 1px solid rgba(0, 210, 255, 0.35);
-    color: #00d2ff; padding: 10px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
-    transition: all 0.2s ease; white-space: nowrap; font-weight: 600;
-  }
-  #panel select option {
-    background-color: #080d18 !important;
-    color: #e0f2fe !important;
-    padding: 8px;
-  }
-  #panel select option:disabled {
-    color: #00ffaa !important;
-    font-weight: bold;
-  }
-  #panel button:hover:not(:disabled) { background: rgba(0, 210, 255, 0.22); border-color: rgba(0, 210, 255, 0.6); }
-  
-  #fav-btn.active { color: #ffd700; border-color: #ffd700; background: rgba(255, 215, 0, 0.15); }
-
-  .fav-pagination-group {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background: #080d18;
-    border: 1px solid rgba(0, 210, 255, 0.35);
-    border-radius: 8px;
-    padding: 2px 6px;
-  }
-  .fav-pagination-group select {
-    border: none !important;
-    background: transparent !important;
-    padding: 8px 4px !important;
-  }
-  .fav-page-btn {
-    padding: 6px 8px !important;
-    font-size: 11px !important;
-    border-radius: 6px !important;
-  }
-  .fav-page-num {
-    color: #00ffaa;
-    font-size: 11px;
-    font-weight: 700;
-    min-width: 34px;
-    text-align: center;
-  }
-
-  /* --- TIME SCRUBBER CONTAINER --- */
-  .scrubber-group {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    margin-top: 6px;
-    padding: 4px 8px;
-    background: rgba(0, 210, 255, 0.05);
-    border: 1px solid rgba(0, 210, 255, 0.15);
-    border-radius: 8px;
-  }
-  
-  .scrubber-time {
-    font-size: 11px;
-    color: #00ffaa;
-    font-weight: 600;
-    min-width: 45px;
-    text-align: center;
-    font-family: monospace;
-  }
-
-  #time-slider {
-    flex: 1;
-    -webkit-appearance: none;
-    appearance: none;
-    height: 6px;
-    background: rgba(0, 210, 255, 0.2);
-    border-radius: 3px;
-    outline: none;
-    cursor: pointer;
-  }
-
-  #time-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
-    cursor: pointer;
-    transition: transform 0.1s ease;
-  }
-
-  #time-slider::-webkit-slider-thumb:hover {
-    transform: scale(1.2);
-  }
-
-  #preview-card {
-    position: fixed; top: 180px; left: 50%; transform: translateX(-50%);
-    z-index: 12; background: rgba(6, 12, 24, 0.95); border: 1px solid var(--accent);
-    border-radius: 10px; padding: 10px; width: 280px; display: none;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center;
-    pointer-events: none;
-  }
-  #preview-card img { width: 100%; height: 140px; object-fit: cover; border-radius: 6px; }
-  #preview-card .title { color: #e0f2fe; font-size: 12px; margin-top: 8px; font-weight: 600; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-
-  #status {
-    position: fixed; top: 125px; left: 50%; transform: translateX(-50%);
-    z-index: 10; font-size: 12px; color: var(--accent); letter-spacing: 0.02em;
-    text-align: center; max-width: 520px; pointer-events: auto;
-    background: rgba(4, 14, 30, 0.85); border: 1px solid rgba(0, 210, 255, 0.25);
-    padding: 6px 14px; border-radius: 20px;
-    opacity: 1;
-    visibility: visible;
-    transition: opacity 1.2s ease, visibility 1.2s ease;
-  }
-
-  #status.faded {
-    opacity: 0;
-    visibility: hidden;
-  }
-
-  #status:hover {
-    opacity: 1 !important;
-    visibility: visible !important;
-  }
-
-  #toggle-panel {
-    position: fixed; top: 20px; right: 20px; z-index: 11;
-    background: var(--panel-bg); border: 1px solid var(--panel-border);
-    color: #e0f2fe; width: 40px; height: 40px; border-radius: 50%;
-    cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s ease;
-  }
-  #toggle-panel:hover { background: rgba(0, 210, 255, 0.2); }
-  #panel.hidden { opacity: 0; visibility: hidden; transform: translateX(-50%) translateY(-10px); }
-  #status.hidden { display: none; }
-
-  #snare-flash {
-    position: fixed; inset: 0; z-index: 5; pointer-events: none;
-    background: #00e1ff; opacity: 0; mix-blend-mode: screen;
-    will-change: opacity;
-  }
+:root{--panel-bg:rgba(8,12,22,.92);--panel-border:rgba(72,160,255,.25);--accent:#00d2ff;--ok:#00ffaa}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;width:100%;height:100%;background:#02060f;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-system,sans-serif}
+#intro-screen{position:fixed;inset:0;z-index:99999;background:#02060f;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#intro-screen.fade-out{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .9s,visibility .9s}
+#intro-canvas{position:absolute;inset:0;width:100%;height:100%}
+.intro-content{position:relative;z-index:2;text-align:center;display:flex;flex-direction:column;align-items:center;transition:opacity .5s,transform .9s cubic-bezier(.5,0,.2,1)}
+.intro-content.leaving{opacity:0;transform:scale(1.25)}
+.intro-logo{width:84px;height:84px;opacity:0;animation:logoIn 1.3s .15s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes logoIn{from{opacity:0;transform:scale(.2) rotate(-120deg);filter:blur(10px)}to{opacity:1;transform:none;filter:drop-shadow(0 0 22px rgba(0,255,170,.8))}}
+.intro-title{display:flex;color:#e0f2fe;font-size:44px;font-weight:800;letter-spacing:.14em;margin:18px 0 4px;text-shadow:0 0 18px rgba(0,210,255,.5);white-space:pre}
+.intro-title span{display:inline-block;opacity:0;animation:letterIn 1s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes letterIn{from{opacity:0;transform:translateY(34px) scale(1.7);filter:blur(14px)}to{opacity:1;transform:none;filter:blur(0)}}
+.intro-subtitle{color:var(--ok);font-size:11px;letter-spacing:.35em;margin:0 0 22px;opacity:0;animation:fadeUp 1s 1.5s ease forwards}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:.85;transform:none}}
+.boot-bar{width:240px;height:2px;background:rgba(0,210,255,.15);border-radius:2px;overflow:hidden}
+.boot-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#00ffaa,#00d2ff);box-shadow:0 0 10px #00d2ff}
+.boot-line{font:600 10px ui-monospace,Consolas,monospace;letter-spacing:.2em;color:rgba(0,255,170,.85);min-height:14px;margin:10px 0 18px}
+#intro-start-btn{background:transparent;border:1px solid var(--accent);color:var(--accent);padding:12px 30px;font-size:13px;font-weight:700;letter-spacing:.2em;border-radius:30px;cursor:pointer;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .6s,transform .6s,background .3s,box-shadow .3s,color .3s}
+#intro-start-btn.ready{opacity:1;transform:none;pointer-events:auto;animation:btnPulse 2s infinite alternate}
+@keyframes btnPulse{from{box-shadow:0 0 8px rgba(0,210,255,.2)}to{box-shadow:0 0 28px rgba(0,210,255,.6)}}
+#intro-start-btn:hover{background:var(--accent);color:#02060f;box-shadow:0 0 30px rgba(0,210,255,.8)}
+#intro-skip-btn{background:none;border:0;color:rgba(180,220,255,.45);font-size:11px;letter-spacing:.12em;margin-top:14px;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .6s,color .2s}
+#intro-skip-btn.ready{opacity:1;pointer-events:auto}
+#intro-skip-btn:hover{color:#e0f2fe}
+#intro-flash{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0;background:radial-gradient(circle,#fff 0%,#00e1ff 35%,transparent 70%)}
+#intro-flash.go{animation:flash .9s ease-out}
+@keyframes flash{0%{opacity:0}15%{opacity:.85}100%{opacity:0}}
+#panel.intro-hold{opacity:0;visibility:hidden;transform:translateX(-50%) translateY(-28px);pointer-events:none}
+#brand-logo-container.intro-hold,#toggle-panel.intro-hold,#status.intro-hold{opacity:0!important;pointer-events:none}
+#toggle-panel{transition:opacity 1.2s ease,background .2s}
+#brand-logo-container{position:fixed;top:20px;left:20px;z-index:100;display:flex;align-items:center;gap:12px;padding:8px 14px;background:rgba(8,12,22,.75);border:1px solid rgba(0,210,255,.2);border-radius:12px;backdrop-filter:blur(8px);transition:opacity 1.5s,visibility 1.5s,transform .3s}
+#brand-logo-container:hover{opacity:1!important;visibility:visible!important;transform:translateY(-2px)}
+#brand-logo-container.faded{opacity:0;visibility:hidden}
+.brand-logo-svg{width:32px;height:32px;filter:drop-shadow(0 0 6px rgba(0,255,170,.6))}
+.brand-text-wrap{display:flex;flex-direction:column}
+.brand-title{color:#e0f2fe;font-size:14px;font-weight:700;letter-spacing:.05em;line-height:1.1}
+.brand-subtitle{color:var(--ok);font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.8}
+#video-stage{position:fixed;inset:0;overflow:hidden;background:#02060f;z-index:1}
+#video-stage iframe{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;border:0}
+#placeholder-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;color:rgba(180,220,255,.6);font-size:15px;text-align:center;max-width:420px;line-height:1.6}
+#vignette{position:fixed;inset:0;z-index:2;pointer-events:none;background:radial-gradient(circle at center,rgba(2,6,15,0) 40%,rgba(2,6,15,.7) 100%),linear-gradient(to top,rgba(2,6,15,.9) 0%,rgba(2,6,15,.3) 30%,rgba(2,6,15,0) 60%)}
+#viz-wrap{position:fixed;inset:0;z-index:4;width:100vw;height:100vh;pointer-events:none;will-change:transform}
+#viz-canvas{width:100%;height:100%;display:block}
+#panel{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10;background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:12px;padding:14px 20px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;max-width:95vw;max-height:calc(100vh - 40px);overflow-y:auto;overflow-x:hidden;transition:opacity .9s ease,transform .9s cubic-bezier(.16,1,.3,1),visibility .2s;box-shadow:0 8px 32px rgba(0,180,255,.08)}
+#panel::-webkit-scrollbar{width:6px}
+#panel::-webkit-scrollbar-thumb{background:rgba(0,210,255,.35);border-radius:4px}
+#panel input[type=text]{background:rgba(0,150,255,.08);border:1px solid rgba(0,210,255,.25);color:#e0f2fe;padding:10px 14px;border-radius:8px;font-size:13px;width:180px;outline:none}
+#panel input[type=text]:focus{border-color:var(--accent);background:rgba(0,150,255,.16)}
+#panel input[type=text]::placeholder{color:rgba(180,220,255,.4)}
+#panel button,#panel select{background:#080d18;border:1px solid rgba(0,210,255,.35);color:var(--accent);padding:10px 12px;border-radius:8px;font-size:13px;cursor:pointer;transition:all .2s;white-space:nowrap;font-weight:600}
+#panel select option{background:#080d18;color:#e0f2fe}
+#panel select option:disabled{color:var(--ok);font-weight:700}
+#panel button:hover{background:rgba(0,210,255,.22);border-color:rgba(0,210,255,.6)}
+#fav-btn.active{color:#ffd700;border-color:#ffd700;background:rgba(255,215,0,.15)}
+#folder-btn.linked{color:var(--ok);border-color:var(--ok)}
+#folder-btn.warn{color:#ffb347;border-color:#ffb347}
+.fav-pagination-group{display:flex;align-items:center;gap:4px;background:#080d18;border:1px solid rgba(0,210,255,.35);border-radius:8px;padding:2px 6px}
+.fav-pagination-group select{border:none!important;background:transparent!important;padding:8px 4px!important}
+.fav-page-btn{padding:6px 8px!important;font-size:11px!important;border-radius:6px!important}
+.fav-page-num{color:var(--ok);font-size:11px;font-weight:700;min-width:34px;text-align:center}
+.scrubber-group{display:flex;align-items:center;gap:10px;width:100%;margin-top:6px;padding:4px 8px;background:rgba(0,210,255,.05);border:1px solid rgba(0,210,255,.15);border-radius:8px}
+.scrubber-time{font-size:11px;color:var(--ok);font-weight:600;min-width:45px;text-align:center;font-family:monospace}
+#time-slider{flex:1;-webkit-appearance:none;appearance:none;height:6px;background:rgba(0,210,255,.2);border-radius:3px;outline:none;cursor:pointer}
+#time-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);cursor:pointer}
+#time-slider::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;background:var(--accent);cursor:pointer}
+#preview-card{position:fixed;top:180px;left:50%;transform:translateX(-50%);z-index:12;background:rgba(6,12,24,.95);border:1px solid var(--accent);border-radius:10px;padding:10px;width:280px;display:none;box-shadow:0 10px 30px rgba(0,0,0,.8);text-align:center;pointer-events:none}
+#preview-card img{width:100%;height:140px;object-fit:cover;border-radius:6px}
+#preview-card .title{color:#e0f2fe;font-size:12px;margin-top:8px;font-weight:600;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#status{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:10;font-size:12px;color:var(--accent);text-align:center;max-width:520px;background:rgba(4,14,30,.85);border:1px solid rgba(0,210,255,.25);padding:6px 14px;border-radius:20px;transition:opacity 1.2s,visibility 1.2s}
+#status.faded{opacity:0;visibility:hidden}
+#status:hover{opacity:1!important;visibility:visible!important}
+#toggle-panel{position:fixed;top:20px;right:20px;z-index:11;background:var(--panel-bg);border:1px solid var(--panel-border);color:#e0f2fe;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+#toggle-panel:hover{background:rgba(0,210,255,.2)}
+#panel.hidden{opacity:0;visibility:hidden;transform:translateX(-50%) translateY(-10px)}
+#status.hidden{display:none}
+#snare-flash{position:fixed;inset:0;z-index:5;pointer-events:none;background:#00e1ff;opacity:0;mix-blend-mode:screen;will-change:opacity}
 </style>
 </head>
 <body>
 
-<div id="brand-logo-container" title="Hover to view logo">
-  <svg class="brand-logo-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="dartGrad1" x1="0%" y1="100%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#00ffaa" />
-        <stop offset="100%" stop-color="#00d2ff" />
-      </linearGradient>
-      <linearGradient id="dartGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#aa00ff" />
-        <stop offset="100%" stop-color="#00ffaa" />
-      </linearGradient>
-    </defs>
-    <path d="M12 52 L52 12 L36 52 L26 38 L12 52 Z" fill="url(#dartGrad1)" />
-    <path d="M52 12 L12 52 L52 36 L38 26 L52 12 Z" fill="url(#dartGrad2)" opacity="0.85" />
-    <polygon points="52,12 38,26 26,38" fill="#ffffff" opacity="0.6" />
-    <circle cx="52" cy="12" r="3" fill="#00ffaa" />
-  </svg>
-  <div class="brand-text-wrap">
-    <span class="brand-title">DART VIZ</span>
-    <span class="brand-subtitle">Audio-Visualizer</span>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="g1" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00ffaa"/><stop offset="100%" stop-color="#00d2ff"/></linearGradient>
+  <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#aa00ff"/><stop offset="100%" stop-color="#00ffaa"/></linearGradient>
+</defs></svg>
+
+<div id="intro-screen">
+  <canvas id="intro-canvas"></canvas>
+  <div class="intro-content" id="intro-content">
+    <div class="intro-logo"><svg viewBox="0 0 64 64" fill="none"><path d="M12 52 L52 12 L36 52 L26 38 L12 52 Z" fill="url(#g1)"/><path d="M52 12 L12 52 L52 36 L38 26 L52 12 Z" fill="url(#g2)" opacity=".85"/></svg></div>
+    <h1 class="intro-title" id="intro-title" aria-label="DART VIZ"></h1>
+    <p class="intro-subtitle">HYPER-REACTIVE AUDIO SYSTEM</p>
+    <div class="boot-bar"><i id="boot-fill"></i></div>
+    <div class="boot-line" id="boot-line">BOOTING…</div>
+    <button id="intro-start-btn">INITIALIZE · ENABLE AUDIO</button>
+    <button id="intro-skip-btn">start without audio</button>
   </div>
+  <div id="intro-flash"></div>
+</div>
+
+<div id="brand-logo-container">
+  <svg class="brand-logo-svg" viewBox="0 0 64 64" fill="none"><path d="M12 52 L52 12 L36 52 L26 38 L12 52 Z" fill="url(#g1)"/><path d="M52 12 L12 52 L52 36 L38 26 L52 12 Z" fill="url(#g2)" opacity=".85"/><polygon points="52,12 38,26 26,38" fill="#fff" opacity=".6"/><circle cx="52" cy="12" r="3" fill="#00ffaa"/></svg>
+  <div class="brand-text-wrap"><span class="brand-title">DART VIZ</span><span class="brand-subtitle">Audio-Visualizer</span></div>
 </div>
 
 <div id="video-stage">
@@ -318,1017 +117,806 @@
 <div id="vignette"></div>
 <div id="snare-flash"></div>
 
-<div id="preview-card">
-  <img id="preview-img" src="" alt="Thumbnail Preview">
-  <div id="preview-title" class="title">Loading Title...</div>
-</div>
-
-<div id="viz-wrap">
-  <canvas id="viz-canvas"></canvas>
-</div>
-
-<button id="toggle-panel" aria-label="Toggle Control Panel" title="Hide/show controls">⋮</button>
+<div id="preview-card"><img id="preview-img" src="" alt="Thumbnail"><div id="preview-title" class="title">Loading…</div></div>
+<div id="viz-wrap"><canvas id="viz-canvas"></canvas></div>
+<button id="toggle-panel" aria-label="Toggle Control Panel" title="Hide/show controls (H)">⋮</button>
 
 <div id="panel">
-  <input id="yt-input" type="text" placeholder="YouTube URL or video ID" aria-label="YouTube URL Input">
+  <input id="yt-input" type="text" placeholder="YouTube URL or video ID" aria-label="YouTube URL">
   <button id="load-btn">Load Video</button>
-  <button id="skip-ad-btn" title="Force reload to bypass ads">⏭️ Skip Ad / Reset</button>
+  <button id="skip-ad-btn" title="Reload stream to bypass ads">⏭️ Skip Ad / Reset</button>
   <button id="fav-btn" title="Save current video to Favorites">⭐ Favorite</button>
-  
+
   <div class="fav-pagination-group">
     <button id="fav-prev-btn" class="fav-page-btn" title="Previous Page">◄</button>
-    <select id="fav-select" aria-label="Favorite Videos List">
-      <option value="" disabled selected>⭐ Favorites</option>
-    </select>
+    <select id="fav-select" aria-label="Favorites"><option value="" disabled selected>⭐ Favorites</option></select>
     <button id="fav-next-btn" class="fav-page-btn" title="Next Page">►</button>
     <span id="fav-page-num" class="fav-page-num">P.1/1</span>
   </div>
 
-  <button id="export-list-btn" title="Copy all Favorites with links and titles to clipboard">📋 Copy List</button>
-  <button id="import-list-btn" title="Import list of video links">📥 Paste List</button>
+  <button id="folder-btn" title="Pick a folder (e.g. DART_VIZ_DATA on your Desktop). Favorites + history are auto-saved there.">📁 Set Backup Folder</button>
+  <button id="save-file-btn" title="Download a backup file now">💾 Save File</button>
+  <button id="export-list-btn" title="Copy Favorites with links and titles">📋 Copy List</button>
+  <button id="import-list-btn" title="Import list from clipboard">📥 Paste List</button>
+  <button id="load-file-btn" title="Restore from a backup file">📂 Load File</button>
+  <input type="file" id="file-input" accept=".json,.txt" style="display:none">
 
-  <select id="history-select" aria-label="Recent Videos History">
-    <option value="" disabled selected>📜 History</option>
-  </select>
+  <select id="history-select" aria-label="History"><option value="" disabled selected>📜 History</option></select>
   <select id="speed-select" aria-label="Playback Speed">
-    <option value="0.25">0.25x Speed</option>
-    <option value="0.5">0.5x Speed</option>
-    <option value="0.75">0.75x Speed</option>
-    <option value="1" selected>1.0x Normal</option>
-    <option value="1.25">1.25x Speed</option>
-    <option value="1.5">1.5x Speed</option>
-    <option value="1.75">1.75x Speed</option>
-    <option value="2">2.0x Speed</option>
+    <option value="0.25">0.25x Speed</option><option value="0.5">0.5x Speed</option><option value="0.75">0.75x Speed</option>
+    <option value="1" selected>1.0x Normal</option><option value="1.25">1.25x Speed</option><option value="1.5">1.5x Speed</option>
+    <option value="1.75">1.75x Speed</option><option value="2">2.0x Speed</option>
   </select>
   <select id="viz-style-select" aria-label="Visualizer Style">
-    <option value="bars" selected>📊 Bars Style</option>
-    <option value="wave">⚡ Rapid Wave Style</option>
-    <option value="sea_wave">🌊 Sea Waves Style</option>
-    <option value="radial">💫 Radial Ring Style</option>
+    <option value="bars" selected>📊 Bars Style</option><option value="wave">⚡ Rapid Wave Style</option>
+    <option value="sea_wave">🌊 Sea Waves Style</option><option value="radial">💫 Radial Ring Style</option>
   </select>
   <button id="capture-btn" title="Requires screen share for tab audio">Enable Real Audio-Reactive</button>
   <button id="sim-btn">Use Ambient Mode</button>
   <select id="theme-select" aria-label="Visual theme"></select>
 
-  <!-- TIME SCRUBBER CONTROL -->
   <div class="scrubber-group">
     <span id="curr-time-display" class="scrubber-time">00:00</span>
-    <input id="time-slider" type="range" min="0" max="100" value="0" step="0.1">
+    <input id="time-slider" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek">
     <span id="total-time-display" class="scrubber-time">00:00</span>
   </div>
 </div>
 
 <div id="status">Ambient mode running. Real mode requires sharing this tab's audio.</div>
 
-<script src="https://www.youtube.com/iframe_api"></script>
 <script>
 (function(){
-  const brandLogoContainer = document.getElementById('brand-logo-container');
-  const FADE_DELAY_MINUTES = 2;
+'use strict';
+const $ = id => document.getElementById(id);
+const ID_RE = /^[\w-]{11}$/;
 
-  setTimeout(() => {
-    if (brandLogoContainer) {
-      brandLogoContainer.classList.add('faded');
-    }
-  }, FADE_DELAY_MINUTES * 60 * 1000);
+/* ================================================================
+   STORAGE — 3 layers so a GitHub reset / cache wipe can't lose data
+   1) localStorage   2) IndexedDB mirror   3) real folder on disk
+   Everything is merged (union) on load, never blindly overwritten.
+   ================================================================ */
+const Store = (() => {
+  const LS_FAV='yt_viz_favorites', LS_HIST='yt_viz_history', LS_BAK='yt_viz_backup_copy';
+  const MAIN_FILE='dart_viz_data.json', LIST_FILE='favorites_readable.txt';
+  const HIST_MAX=25;
+  const data = { favorites: [], history: [] };
+  let dirHandle = null, dirOK = false, onChange = () => {}, timer = null;
+  const folderSupported = typeof window.showDirectoryPicker === 'function';
 
-  const canvas = document.getElementById('viz-canvas');
-  const ctx = canvas.getContext('2d', { alpha: true });
-  const vizWrap = document.getElementById('viz-wrap');
-  const snareFlashEl = document.getElementById('snare-flash');
+  // ---- IndexedDB ----
+  let dbp = null;
+  const idb = () => dbp || (dbp = new Promise((res, rej) => {
+    const r = indexedDB.open('dart_viz_db', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  }));
+  const idbGet = async k => { try { const db = await idb(); return await new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); }); } catch { return undefined; } };
+  const idbSet = async (k, v) => { try { const db = await idb(); await new Promise((res, rej) => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); } catch {} };
 
-  const inputEl = document.getElementById('yt-input');
-  const historySelectEl = document.getElementById('history-select');
-  const favSelectEl = document.getElementById('fav-select');
-  const favBtn = document.getElementById('fav-btn');
-  const favPrevBtn = document.getElementById('fav-prev-btn');
-  const favNextBtn = document.getElementById('fav-next-btn');
-  const favPageNumEl = document.getElementById('fav-page-num');
-  
-  const exportListBtn = document.getElementById('export-list-btn');
-  const importListBtn = document.getElementById('import-list-btn');
-
-  const speedSelectEl = document.getElementById('speed-select');
-  const vizStyleSelectEl = document.getElementById('viz-style-select');
-  const previewCard = document.getElementById('preview-card');
-  const previewImg = document.getElementById('preview-img');
-  const previewTitle = document.getElementById('preview-title');
-
-  const statusEl = document.getElementById('status');
-  const panelEl = document.getElementById('panel');
-  const placeholderEl = document.getElementById('placeholder-msg');
-  const themeSelectEl = document.getElementById('theme-select');
-
-  // Scrubber Elements
-  const timeSlider = document.getElementById('time-slider');
-  const currTimeDisplay = document.getElementById('curr-time-display');
-  const totalTimeDisplay = document.getElementById('total-time-display');
-  let isUserScrubbing = false;
-
-  let player = null;
-  let currentSpeed = 1.0;
-  let vizStyle = 'bars';
-  let currentVideoId = null;
-  let currentVideoTitle = "YouTube Video";
-
-  let videoHistory = JSON.parse(localStorage.getItem('yt_viz_history') || '[]');
-  let videoFavorites = JSON.parse(localStorage.getItem('yt_viz_favorites') || '[]');
-  
-  let favCurrentPage = 1;
-  const ITEMS_PER_PAGE = 5;
-
-  let statusFadeTimer = null;
-  function setStatus(msg) { 
-    statusEl.textContent = msg; 
-    statusEl.classList.remove('faded');
-    if (statusFadeTimer) clearTimeout(statusFadeTimer);
-    statusFadeTimer = setTimeout(() => {
-      statusEl.classList.add('faded');
-    }, 1500);
-  }
-
-  function formatTime(seconds) {
-    if (!seconds || isNaN(seconds)) return '00:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  }
-
-  function updateScrubber() {
-    if (!player || typeof player.getCurrentTime !== 'function' || isUserScrubbing) return;
-    const duration = player.getDuration();
-    const currentTime = player.getCurrentTime();
-
-    if (duration > 0) {
-      timeSlider.max = duration;
-      timeSlider.value = currentTime;
-      currTimeDisplay.textContent = formatTime(currentTime);
-      totalTimeDisplay.textContent = formatTime(duration);
-    }
-  }
-
-  timeSlider.addEventListener('input', () => {
-    isUserScrubbing = true;
-    currTimeDisplay.textContent = formatTime(timeSlider.value);
-  });
-
-  timeSlider.addEventListener('change', () => {
-    if (player && typeof player.seekTo === 'function') {
-      player.seekTo(parseFloat(timeSlider.value), true);
-    }
-    isUserScrubbing = false;
-  });
-
-  function skipAdOrReload() {
-    if (!currentVideoId) return setStatus('No video loaded.');
-    setStatus('Bypassing ad / reloading stream...');
-    if (player && typeof player.loadVideoById === 'function') {
-      player.loadVideoById({ videoId: currentVideoId, startSeconds: 0 });
-    } else {
-      setIframeVideo(currentVideoId);
-    }
-  }
-  document.getElementById('skip-ad-btn').addEventListener('click', skipAdOrReload);
-
-  function extractVideoId(input) {
-    if(!input) return null;
-    const cleaned = String(input).trim();
-    if(/^[\w-]{11}$/.test(cleaned)) return cleaned;
-    try {
-      const candidate = cleaned.includes('://') ? cleaned : `https://${cleaned}`;
-      const url = new URL(candidate);
-      const host = url.hostname.replace(/^www\./, '');
-      const path = url.pathname.replace(/^\/+/, '');
-      if(['youtu.be', 'youtube.com', 'm.youtube.com'].includes(host)){
-        if(host === 'youtu.be') {
-          const shortId = path.split('/')[0];
-          if(/^[\w-]{11}$/.test(shortId)) return shortId;
-        }
-        if(url.searchParams.get('v')) return url.searchParams.get('v');
-        const parts = path.split('/');
-        if(['shorts', 'embed', 'live'].includes(parts[0])) return parts[1] || null;
-      }
-    } catch(e) {}
-    const fallback = cleaned.match(/([A-Za-z0-9_-]{11})/);
-    return fallback ? fallback[1] : null;
-  }
-
-  async function showPreview(id) {
-    if(!id) return hidePreview();
-    previewImg.src = `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
-    previewTitle.textContent = "Fetching video title...";
-    previewCard.style.display = 'block';
-
-    try {
-      const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`);
-      const data = await res.json();
-      if(data && data.title) {
-        previewTitle.textContent = data.title;
-        currentVideoTitle = data.title;
-        return data.title;
-      }
-    } catch(e) {}
-    previewTitle.textContent = "YouTube Video";
-    currentVideoTitle = "YouTube Video";
-    return "YouTube Video";
-  }
-
-  function hidePreview() { previewCard.style.display = 'none'; }
-
-  function updateHistoryDropdown() {
-    historySelectEl.innerHTML = '<option value="" disabled selected>📜 History</option>';
-    videoHistory.forEach(item => {
-      const opt = document.createElement('option');
-      opt.value = item.id;
-      opt.textContent = item.title.length > 18 ? item.title.substring(0, 18) + '...' : item.title;
-      historySelectEl.appendChild(opt);
+  // ---- helpers ----
+  const clean = list => {
+    const seen = new Set(), out = [];
+    (Array.isArray(list) ? list : []).forEach(it => {
+      const id = typeof it === 'string' ? extractVideoId(it) : (it && (ID_RE.test(it.id || '') ? it.id : extractVideoId(it.url || '')));
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      out.push({ id, title: String((it && it.title) || 'YouTube Video').slice(0, 200) });
     });
+    return out;
+  };
+  const merge = (a, b) => clean([...a, ...b]);
+  const lsRead = k => { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; } };
+  const snapshot = () => JSON.stringify({ app: 'DART VIZ', version: 2, savedAt: new Date().toISOString(), favorites: data.favorites, history: data.history }, null, 2);
+  const readableList = () => data.favorites.map((f, i) => `${i + 1}. ${f.title}\n   https://youtu.be/${f.id}`).join('\n') + '\n';
+
+  function absorb(obj) {
+    if (!obj) return 0;
+    const before = data.favorites.length;
+    if (Array.isArray(obj)) data.favorites = merge(data.favorites, obj);
+    else { data.favorites = merge(data.favorites, obj.favorites); data.history = merge(data.history, obj.history).slice(0, HIST_MAX); }
+    return data.favorites.length - before;
   }
 
-  function updateFavoritesDropdown() {
-    favSelectEl.innerHTML = '<option value="" disabled selected>⭐ Favorites</option>';
-    const totalPages = Math.max(1, Math.ceil(videoFavorites.length / ITEMS_PER_PAGE));
-    if (favCurrentPage > totalPages) favCurrentPage = totalPages;
-    if (favCurrentPage < 1) favCurrentPage = 1;
-
-    const startIndex = (favCurrentPage - 1) * ITEMS_PER_PAGE;
-    const pageItems = videoFavorites.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-
-    pageItems.forEach(item => {
-      const opt = document.createElement('option');
-      opt.value = item.id;
-      opt.textContent = item.title.length > 16 ? item.title.substring(0, 16) + '...' : item.title;
-      favSelectEl.appendChild(opt);
-    });
-
-    favPageNumEl.textContent = `P.${favCurrentPage}/${totalPages}`;
-    updateFavBtnState();
+  // ---- folder layer ----
+  async function perm(h, ask) {
+    const o = { mode: 'readwrite' };
+    try {
+      if ((await h.queryPermission(o)) === 'granted') return true;
+      if (ask && (await h.requestPermission(o)) === 'granted') return true;
+    } catch {}
+    return false;
+  }
+  async function writeFile(dir, name, text) {
+    const fh = await dir.getFileHandle(name, { create: true });
+    const w = await fh.createWritable(); await w.write(text); await w.close();
+  }
+  async function readFolder() {
+    try {
+      const fh = await dirHandle.getFileHandle(MAIN_FILE);
+      return JSON.parse(await (await fh.getFile()).text());
+    } catch { return null; }
+  }
+  async function writeFolder() {
+    if (!dirHandle || !dirOK) return false;
+    try {
+      const text = snapshot();
+      await writeFile(dirHandle, MAIN_FILE, text);
+      await writeFile(dirHandle, LIST_FILE, readableList());
+      const day = new Date().toISOString().slice(0, 10);
+      const bak = await dirHandle.getDirectoryHandle('backups', { create: true });
+      await writeFile(bak, `dart_viz_${day}.json`, text);   // one rolling copy per day
+      return true;
+    } catch { dirOK = false; onChange(); return false; }
   }
 
-  favPrevBtn.addEventListener('click', () => {
-    const totalPages = Math.max(1, Math.ceil(videoFavorites.length / ITEMS_PER_PAGE));
-    favCurrentPage = (favCurrentPage - 2 + totalPages) % totalPages + 1;
-    updateFavoritesDropdown();
-  });
+  async function persistAll() {
+    try { localStorage.setItem(LS_FAV, JSON.stringify(data.favorites)); localStorage.setItem(LS_HIST, JSON.stringify(data.history)); localStorage.setItem(LS_BAK, snapshot()); } catch {}
+    await idbSet('data', { favorites: data.favorites, history: data.history });
+    await writeFolder();
+  }
+  function save() { clearTimeout(timer); timer = setTimeout(persistAll, 350); }
+  function flushNow() { clearTimeout(timer); try { localStorage.setItem(LS_FAV, JSON.stringify(data.favorites)); localStorage.setItem(LS_HIST, JSON.stringify(data.history)); } catch {} persistAll(); }
 
-  favNextBtn.addEventListener('click', () => {
-    const totalPages = Math.max(1, Math.ceil(videoFavorites.length / ITEMS_PER_PAGE));
-    favCurrentPage = (favCurrentPage % totalPages) + 1;
-    updateFavoritesDropdown();
-  });
+  async function chooseFolder() {
+    if (!folderSupported) return { ok: false, msg: 'Folder backup needs Chrome/Edge. Use 💾 Save File instead.' };
+    try {
+      const h = await window.showDirectoryPicker({ id: 'dartviz', mode: 'readwrite', startIn: 'desktop' });
+      if (!(await perm(h, true))) return { ok: false, msg: 'Folder permission denied.' };
+      dirHandle = h; dirOK = true;
+      await idbSet('dirHandle', h);
+      const added = absorb(await readFolder());      // restore anything already in that folder
+      await persistAll(); onChange();
+      return { ok: true, msg: `Backup folder linked: ${h.name}` + (added ? ` (restored ${added} favorites)` : '') };
+    } catch (e) { return { ok: false, msg: e && e.name === 'AbortError' ? 'Folder pick cancelled.' : 'Folder pick failed. Create a subfolder on Desktop first (Chrome blocks Desktop itself).' }; }
+  }
+  async function reconnect(ask) {
+    if (!dirHandle) return false;
+    dirOK = await perm(dirHandle, ask);
+    if (dirOK) { absorb(await readFolder()); await persistAll(); }
+    onChange(); return dirOK;
+  }
 
-  function updateFavBtnState() {
-    if(!currentVideoId) return;
-    const isFav = videoFavorites.some(item => item.id === currentVideoId);
-    if(isFav) {
-      favBtn.classList.add('active');
-      favBtn.textContent = '⭐ Favorited';
-    } else {
-      favBtn.classList.remove('active');
-      favBtn.textContent = '⭐ Favorite';
+  async function init(cb) {
+    onChange = cb;
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch {}
+    data.favorites = clean(lsRead(LS_FAV)); data.history = clean(lsRead(LS_HIST)).slice(0, HIST_MAX);
+    try { absorb(JSON.parse(localStorage.getItem(LS_BAK) || 'null')); } catch {}
+    absorb(await idbGet('data'));
+    if (folderSupported) {
+      dirHandle = (await idbGet('dirHandle')) || null;
+      if (dirHandle) {
+        dirOK = await perm(dirHandle, false);
+        if (dirOK) absorb(await readFolder());
+      }
+    }
+    await persistAll(); onChange();
+    return { needsGesture: !!dirHandle && !dirOK };
+  }
+
+  return {
+    data, init, save, flushNow, chooseFolder, reconnect, absorb, snapshot, clean,
+    get linked() { return dirOK; }, get hasHandle() { return !!dirHandle; }, get folderName() { return dirHandle ? dirHandle.name : ''; }, get supported() { return folderSupported; },
+    setHistory(list) { data.history = list.slice(0, HIST_MAX); }
+  };
+})();
+
+/* ---------------- helpers ---------------- */
+function extractVideoId(input) {
+  if (!input) return null;
+  const s = String(input).trim();
+  if (ID_RE.test(s)) return s;
+  try {
+    const url = new URL(s.includes('://') ? s : 'https://' + s);
+    const host = url.hostname.replace(/^www\./, '');
+    const path = url.pathname.replace(/^\/+/, '');
+    if (['youtu.be', 'youtube.com', 'm.youtube.com', 'music.youtube.com'].includes(host)) {
+      if (host === 'youtu.be') { const id = path.split('/')[0]; if (ID_RE.test(id)) return id; }
+      const v = url.searchParams.get('v'); if (v && ID_RE.test(v)) return v;
+      const parts = path.split('/');
+      if (['shorts', 'embed', 'live'].includes(parts[0]) && ID_RE.test(parts[1] || '')) return parts[1];
+    }
+  } catch {}
+  const m = s.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+const formatTime = t => { if (!t || isNaN(t)) return '00:00'; const m = Math.floor(t / 60), s = Math.floor(t % 60); return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`; };
+
+/* ---------------- DOM refs ---------------- */
+const canvas = $('viz-canvas'), ctx = canvas.getContext('2d', { alpha: true });
+const vizWrap = $('viz-wrap'), snareFlashEl = $('snare-flash');
+const inputEl = $('yt-input'), historySelectEl = $('history-select'), favSelectEl = $('fav-select');
+const favBtn = $('fav-btn'), favPageNumEl = $('fav-page-num'), folderBtn = $('folder-btn');
+const speedSelectEl = $('speed-select'), vizStyleSelectEl = $('viz-style-select');
+const previewCard = $('preview-card'), previewImg = $('preview-img'), previewTitle = $('preview-title');
+const statusEl = $('status'), panelEl = $('panel'), placeholderEl = $('placeholder-msg'), themeSelectEl = $('theme-select');
+const timeSlider = $('time-slider'), currTimeDisplay = $('curr-time-display'), totalTimeDisplay = $('total-time-display');
+
+setTimeout(() => $('brand-logo-container').classList.add('faded'), 120000);
+
+let player = null, currentSpeed = 1, vizStyle = 'bars', currentVideoId = null, currentVideoTitle = 'YouTube Video';
+let favPage = 1, isUserScrubbing = false, statusTimer = null, previewToken = 0, previewHideTimer = null;
+const PER_PAGE = 5;
+
+function setStatus(msg, ms = 2500) {
+  statusEl.textContent = msg; statusEl.classList.remove('faded');
+  clearTimeout(statusTimer); statusTimer = setTimeout(() => statusEl.classList.add('faded'), ms);
+}
+
+/* ---------------- dropdowns / favorites ---------------- */
+const shorten = (t, n) => t.length > n ? t.slice(0, n) + '…' : t;
+
+function renderHistory() {
+  historySelectEl.innerHTML = '<option value="" disabled selected>📜 History</option>';
+  Store.data.history.forEach(it => { const o = document.createElement('option'); o.value = it.id; o.textContent = shorten(it.title, 18); historySelectEl.appendChild(o); });
+}
+function renderFavorites() {
+  const favs = Store.data.favorites;
+  favSelectEl.innerHTML = '<option value="" disabled selected>⭐ Favorites</option>';
+  const pages = Math.max(1, Math.ceil(favs.length / PER_PAGE));
+  favPage = Math.min(Math.max(1, favPage), pages);
+  favs.slice((favPage - 1) * PER_PAGE, favPage * PER_PAGE).forEach(it => { const o = document.createElement('option'); o.value = it.id; o.textContent = shorten(it.title, 16); favSelectEl.appendChild(o); });
+  favPageNumEl.textContent = `P.${favPage}/${pages}`;
+  renderFavBtn();
+}
+function renderFavBtn() {
+  const isFav = !!currentVideoId && Store.data.favorites.some(i => i.id === currentVideoId);
+  favBtn.classList.toggle('active', isFav);
+  favBtn.textContent = isFav ? '⭐ Favorited' : '⭐ Favorite';
+}
+function renderFolderBtn() {
+  folderBtn.classList.remove('linked', 'warn');
+  if (!Store.supported) { folderBtn.textContent = '📁 Folder: Chrome/Edge only'; return; }
+  if (Store.linked) { folderBtn.classList.add('linked'); folderBtn.textContent = `📁 ✔ ${shorten(Store.folderName, 14)}`; }
+  else if (Store.hasHandle) { folderBtn.classList.add('warn'); folderBtn.textContent = '📁 Click to Reconnect'; }
+  else folderBtn.textContent = '📁 Set Backup Folder';
+}
+const refreshUI = () => { renderHistory(); renderFavorites(); renderFolderBtn(); };
+
+$('fav-prev-btn').addEventListener('click', () => { const p = Math.max(1, Math.ceil(Store.data.favorites.length / PER_PAGE)); favPage = favPage <= 1 ? p : favPage - 1; renderFavorites(); });
+$('fav-next-btn').addEventListener('click', () => { const p = Math.max(1, Math.ceil(Store.data.favorites.length / PER_PAGE)); favPage = favPage >= p ? 1 : favPage + 1; renderFavorites(); });
+
+favBtn.addEventListener('click', () => {
+  if (!currentVideoId) return setStatus('Load a video first before adding to favorites!');
+  const favs = Store.data.favorites, i = favs.findIndex(f => f.id === currentVideoId);
+  if (i > -1) { favs.splice(i, 1); setStatus('Removed from Favorites'); }
+  else { favs.unshift({ id: currentVideoId, title: currentVideoTitle }); favPage = 1; setStatus(Store.linked ? 'Saved & backed up to your folder ⭐' : 'Saved ⭐ (set a backup folder for extra safety)'); }
+  Store.save(); renderFavorites();
+});
+
+/* ---- folder / file backup buttons ---- */
+folderBtn.addEventListener('click', async () => {
+  if (Store.hasHandle && !Store.linked) { const ok = await Store.reconnect(true); return setStatus(ok ? 'Folder reconnected & synced ✔' : 'Permission not granted — click again to retry.'); }
+  if (Store.linked && !confirm(`Backing up to "${Store.folderName}".\n\nOK = choose a different folder\nCancel = just back up now`)) { Store.flushNow(); return setStatus('Backed up now ✔'); }
+  const r = await Store.chooseFolder(); setStatus(r.msg, 5000); refreshUI();
+});
+$('save-file-btn').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([Store.snapshot()], { type: 'application/json' }));
+  a.download = 'dart_viz_backup.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  setStatus('Backup file downloaded.');
+});
+$('export-list-btn').addEventListener('click', async () => {
+  const favs = Store.data.favorites;
+  if (!favs.length) return setStatus('Favorites list is empty!');
+  const json = JSON.stringify(favs.map((f, i) => ({ index: i + 1, title: f.title, url: `https://youtu.be/${f.id}`, id: f.id })), null, 2);
+  try { await navigator.clipboard.writeText(json); setStatus(`Copied ${favs.length} link(s) to clipboard!`); }
+  catch { prompt('Copy your video list below:', json); }
+});
+function importText(text, label) {
+  try {
+    const added = Store.absorb(JSON.parse(text));
+    Store.save(); refreshUI(); setStatus(`${label} ${added} new video(s)!`);
+  } catch { setStatus('Failed to parse list.'); }
+}
+$('import-list-btn').addEventListener('click', async () => {
+  let t = ''; try { t = await navigator.clipboard.readText(); } catch { t = prompt('Paste your video list JSON here:') || ''; }
+  if (t.trim()) importText(t, 'Imported');
+});
+$('load-file-btn').addEventListener('click', () => $('file-input').click());
+$('file-input').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader(); r.onload = ev => importText(String(ev.target.result), 'Restored'); r.readAsText(f); e.target.value = '';
+});
+
+/* ---------------- preview / history ---------------- */
+async function fetchTitle(id) {
+  const token = ++previewToken;
+  clearTimeout(previewHideTimer);
+  previewImg.src = `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+  previewTitle.textContent = 'Fetching video title…';
+  previewCard.style.display = 'block';
+  let title = 'YouTube Video';
+  try {
+    const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + id)}`);
+    const d = await res.json(); if (d && d.title) title = d.title;
+  } catch {}
+  if (token === previewToken) previewTitle.textContent = title;
+  return title;
+}
+const hidePreview = () => { previewToken++; previewCard.style.display = 'none'; };
+
+async function addToHistory(id) {
+  const title = await fetchTitle(id);
+  if (currentVideoId === id) currentVideoTitle = title;
+  previewHideTimer = setTimeout(hidePreview, 3000);
+  Store.setHistory([{ id, title }, ...Store.data.history.filter(h => h.id !== id)]);
+  // refresh title in favorites if it was generic
+  const fav = Store.data.favorites.find(f => f.id === id);
+  if (fav && fav.title === 'YouTube Video' && title !== 'YouTube Video') fav.title = title;
+  Store.save(); renderHistory(); renderFavorites();
+}
+
+function pickFrom(sel) { return e => { const id = e.target.value; e.target.selectedIndex = 0; if (id) { inputEl.value = `https://youtu.be/${id}`; loadVideoFromInput(); } }; }
+historySelectEl.addEventListener('change', pickFrom());
+favSelectEl.addEventListener('change', pickFrom());
+
+speedSelectEl.addEventListener('change', e => {
+  currentSpeed = parseFloat(e.target.value);
+  if (player && typeof player.setPlaybackRate === 'function') { player.setPlaybackRate(currentSpeed); setStatus(`Playback speed ${currentSpeed}x`); }
+});
+vizStyleSelectEl.addEventListener('change', e => { vizStyle = e.target.value; });
+
+/* ---------------- player ---------------- */
+function resizeVideoCover() {
+  const f = document.querySelector('#video-stage iframe'); if (!f) return;
+  const aspect = 16 / 9, ww = innerWidth, wh = innerHeight; let w, h;
+  if (ww / wh > aspect) { w = ww * 1.02; h = w / aspect; } else { h = wh * 1.02; w = h * aspect; }
+  f.style.width = w + 'px'; f.style.height = h + 'px';
+}
+addEventListener('resize', resizeVideoCover);
+
+function freshTarget() {
+  const stage = $('video-stage');
+  stage.querySelectorAll('iframe, #yt-player-target').forEach(n => n.remove());
+  const t = document.createElement('div'); t.id = 'yt-player-target'; stage.insertBefore(t, stage.firstChild);
+  return t;
+}
+function setIframeVideo(id) {
+  try { if (player && player.destroy) player.destroy(); } catch {}
+  player = null;
+  const t = freshTarget();
+  const f = document.createElement('iframe');
+  f.setAttribute('allow', 'autoplay; encrypted-media'); f.setAttribute('allowfullscreen', 'true');
+  f.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&controls=0&modestbranding=1&rel=0&playsinline=1&loop=1&playlist=${id}&mute=1`;
+  t.appendChild(f); resizeVideoCover();
+}
+function loadYT() {
+  if (window.YT && YT.Player) return Promise.resolve(true);
+  if (loadYT.p) return loadYT.p;
+  return loadYT.p = new Promise(res => {
+    const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api';
+    s.onerror = () => res(false);
+    window.onYouTubeIframeAPIReady = () => res(true);
+    document.head.appendChild(s);
+    setTimeout(() => res(!!(window.YT && YT.Player)), 8000);
+  });
+}
+async function startPlayer(id) {
+  const ok = await loadYT();
+  if (!ok) return setIframeVideo(id);
+  if (player && typeof player.loadVideoById === 'function' && document.querySelector('#video-stage iframe')) {
+    player.loadVideoById(id); setTimeout(() => { try { player.setPlaybackRate(currentSpeed); } catch {} }, 600); return;
+  }
+  const t = freshTarget();
+  player = new YT.Player(t, {
+    videoId: id,
+    playerVars: { autoplay: 1, controls: 0, modestbranding: 1, rel: 0, playsinline: 1 },
+    events: {
+      onReady: e => { e.target.playVideo(); e.target.setPlaybackRate(currentSpeed); resizeVideoCover(); },
+      onStateChange: e => { if (e.data === 0) { e.target.seekTo(0, true); e.target.playVideo(); } },   // loop
+      onError: () => { setStatus('Embed error — using fallback player.'); setIframeVideo(id); }
+    }
+  });
+  resizeVideoCover(); setTimeout(resizeVideoCover, 800);
+}
+function loadVideoFromInput() {
+  const id = extractVideoId(inputEl.value);
+  if (!id) return setStatus('Could not read a video ID — check the link.');
+  placeholderEl.style.display = 'none';
+  currentVideoId = id; currentVideoTitle = 'YouTube Video';
+  addToHistory(id); renderFavBtn();
+  startPlayer(id); setStatus('Video loading…');
+}
+$('load-btn').addEventListener('click', loadVideoFromInput);
+$('skip-ad-btn').addEventListener('click', () => {
+  if (!currentVideoId) return setStatus('No video loaded.');
+  setStatus('Reloading stream…');
+  if (player && player.loadVideoById) player.loadVideoById({ videoId: currentVideoId, startSeconds: 0 }); else setIframeVideo(currentVideoId);
+});
+inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') loadVideoFromInput(); });
+inputEl.addEventListener('input', () => { const id = extractVideoId(inputEl.value); if (id) fetchTitle(id); else hidePreview(); });
+
+/* scrubber */
+function updateScrubber() {
+  if (!player || typeof player.getCurrentTime !== 'function' || isUserScrubbing) return;
+  try {
+    const d = player.getDuration(), c = player.getCurrentTime();
+    if (d > 0) { timeSlider.max = d; timeSlider.value = c; currTimeDisplay.textContent = formatTime(c); totalTimeDisplay.textContent = formatTime(d); }
+  } catch {}
+}
+timeSlider.addEventListener('input', () => { isUserScrubbing = true; currTimeDisplay.textContent = formatTime(timeSlider.value); });
+timeSlider.addEventListener('change', () => { if (player && player.seekTo) player.seekTo(parseFloat(timeSlider.value), true); isUserScrubbing = false; });
+
+/* ---------------- themes ---------------- */
+const THEMES = [
+  { name: 'Deep Blue', hueBase: 195, hueRange: 30, sat: 90 },
+  { name: 'Neon Green', hueBase: 140, hueRange: 35, sat: 100 },
+  { name: 'Neon Purple', hueBase: 275, hueRange: 35, sat: 95 },
+  { name: 'Void Black', hueBase: 0, hueRange: 0, sat: 0, isMonochrome: true, isBlack: true },
+  { name: 'Crimson Red', hueBase: 350, hueRange: 20, sat: 95 },
+  { name: 'Pure White', hueBase: 0, hueRange: 0, sat: 0, isMonochrome: true },
+  { name: 'Ruby Glow', hueBase: 335, hueRange: 30, sat: 85 },
+  { name: 'Sapphire Glow', hueBase: 215, hueRange: 35, sat: 85 },
+  { name: 'Cyan Shift', hueBase: 180, hueRange: 25, sat: 95 },
+  { name: 'Oceanic Glow', hueBase: 170, hueRange: 45, sat: 80 },
+  { name: 'Electric Ice', hueBase: 190, hueRange: 15, sat: 100 }
+];
+let currentTheme = THEMES[0];
+THEMES.forEach((t, i) => { const o = document.createElement('option'); o.value = i; o.textContent = t.name; themeSelectEl.appendChild(o); });
+// remember user's visual choices too
+try {
+  const prefs = JSON.parse(localStorage.getItem('yt_viz_prefs') || '{}');
+  if (THEMES[prefs.theme]) { currentTheme = THEMES[prefs.theme]; themeSelectEl.value = prefs.theme; }
+  if (['bars', 'wave', 'sea_wave', 'radial'].includes(prefs.style)) { vizStyle = prefs.style; vizStyleSelectEl.value = prefs.style; }
+} catch {}
+const savePrefs = () => { try { localStorage.setItem('yt_viz_prefs', JSON.stringify({ theme: THEMES.indexOf(currentTheme), style: vizStyle })); } catch {} };
+themeSelectEl.addEventListener('change', e => { currentTheme = THEMES[parseInt(e.target.value, 10)] || THEMES[0]; savePrefs(); });
+vizStyleSelectEl.addEventListener('change', savePrefs);
+
+/* ---------------- canvas ---------------- */
+let W, H;
+function resizeCanvas() {
+  const r = canvas.parentElement.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+  canvas.width = r.width * dpr; canvas.height = r.height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); W = r.width; H = r.height;
+}
+addEventListener('resize', resizeCanvas); resizeCanvas();
+
+const BAR_COUNT = 96, HALF_BARS = BAR_COUNT / 2;
+let audioCtx = null, analyser = null, dataArray = null, timeDataArray = null, mode = 'ambient';
+let ambientPhase = 0, wobbleTime = 0, radialRotation = 0;
+let kickPulse = 0, bassHistory = 0, snarePulse = 0, snareHistory = 0, hihatPulse = 0, hihatHistory = 0, peakVolume = 0.2;
+
+const MAX_PARTICLES = 80, particles = [];
+class Particle {
+  constructor(x, y, hue, power, sparkle, isMono, isBlack, angleDir) {
+    this.x = x; this.y = y;
+    const angle = angleDir !== undefined ? angleDir : (-Math.PI / 2 + (Math.random() - .5) * (sparkle ? 2.4 : 1.2));
+    const speed = (sparkle ? 1 : 2) + Math.random() * (sparkle ? 3 : 6) * (.5 + power);
+    this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed;
+    this.radius = sparkle ? .8 + Math.random() * 1.2 : 1.5 + Math.random() * 2.5;
+    this.hue = sparkle ? 190 : hue + (Math.random() * 12 - 6);
+    this.isMono = isMono; this.isBlack = isBlack; this.sparkle = sparkle;
+    this.alpha = .8 + Math.random() * .2;
+    this.decay = (sparkle ? .04 : .02) + Math.random() * .02;
+    this.gravity = sparkle ? .04 : (angleDir !== undefined ? 0 : .08);
+  }
+  update() { this.x += this.vx; this.y += this.vy; this.vy += this.gravity; this.vx *= .98; this.alpha -= this.decay; }
+  draw(c) {
+    c.globalAlpha = Math.max(0, this.alpha);
+    c.fillStyle = this.isBlack ? '#0a0d14' : (this.isMono || this.sparkle ? '#fff' : `hsl(${this.hue},95%,75%)`);
+    c.beginPath(); c.arc(this.x, this.y, this.radius, 0, 6.2832); c.fill();
+  }
+}
+function spawnBeatParticles(pos, power, mono, black) {
+  if (power < .2 || !pos.length) return;
+  const n = Math.floor(4 + power * 8);
+  for (let i = 0; i < n && particles.length < MAX_PARTICLES; i++) { const p = pos[(Math.random() * pos.length) | 0]; particles.push(new Particle(p.x, p.y, p.hue, power, false, mono, black, p.angle)); }
+}
+function spawnSparkles(power, mono, black) {
+  const n = Math.floor(2 + power * 6);
+  for (let i = 0; i < n && particles.length < MAX_PARTICLES; i++) particles.push(new Particle(Math.random() * W, H * (.15 + Math.random() * .3), 0, power, true, mono, black));
+}
+function drawParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; p.update(); if (p.alpha <= 0) particles.splice(i, 1); else p.draw(ctx); }
+  ctx.globalAlpha = 1;
+}
+
+const smoothed = new Float32Array(HALF_BARS), rawValues = new Float32Array(HALF_BARS), renderValues = new Float32Array(HALF_BARS), peakHeights = new Float32Array(HALF_BARS);
+const binIndices = new Int32Array(HALF_BARS + 1);
+function updateBinIndices(n, sr) {
+  for (let i = 0; i <= HALF_BARS; i++) {
+    const f = 30 * Math.pow(16000 / 30, i / HALF_BARS);
+    binIndices[i] = Math.min(n - 1, Math.max(0, Math.floor(f / (sr / 2) * n)));
+  }
+}
+
+function drawBars(values, pulse, theme) {
+  ctx.clearRect(0, 0, W, H);
+  const gap = Math.max(2, W * .0035), bw = Math.max(2, (W - gap * (BAR_COUNT - 1)) / BAR_COUNT);
+  const cx = W / 2, maxH = Math.max(220, H * .55), peaks = [];
+  for (let i = 0; i < HALF_BARS; i++) {
+    const v = values[i], bh = Math.max(4, v * maxH * (1 + Math.sin(wobbleTime * 2.2 + i * .4) * .02)), y = H - bh;
+    const xR = cx + i * (bw + gap), xL = cx - (i + 1) * (bw + gap);
+    const hue = (theme.hueBase + i / HALF_BARS * theme.hueRange - pulse * 8 + 360) % 360;
+    ctx.fillStyle = theme.isBlack ? `hsl(0,0%,${Math.max(5, 20 - v * 15)}%)` : theme.isMonochrome ? `hsl(0,0%,${Math.min(100, 70 + v * 30 + pulse * 15)}%)` : `hsl(${hue},${theme.sat}%,${50 + v * 28 + pulse * 10}%)`;
+    peakHeights[i] = bh > peakHeights[i] ? bh : Math.max(bh, peakHeights[i] - H * .012);
+    ctx.fillRect(xR, y, bw, bh); ctx.fillRect(xL, y, bw, bh);
+    const capY = H - peakHeights[i] - 3.5;
+    ctx.fillStyle = theme.isBlack ? '#334155' : '#fff';
+    ctx.fillRect(xR, capY, bw, 2.5); ctx.fillRect(xL, capY, bw, 2.5);
+    peaks.push({ x: xR + bw / 2, y, hue }, { x: xL + bw / 2, y, hue });
+  }
+  if (pulse > .15) spawnBeatParticles(peaks, pulse, theme.isMonochrome, theme.isBlack);
+  drawParticles();
+}
+
+function drawWave(pulse, theme) {
+  ctx.clearRect(0, 0, W, H);
+  const cy = H * .7, amp = Math.max(120, H * .35) * (.6 + pulse * .4), pts = [];
+  const stroke = theme.isBlack ? `rgba(15,23,42,${.9 + pulse * .1})` : theme.isMonochrome ? `rgba(255,255,255,${.8 + pulse * .2})` : `hsl(${theme.hueBase},${theme.sat}%,${60 + pulse * 20}%)`;
+  ctx.beginPath(); ctx.lineWidth = 3 + pulse * 3; ctx.strokeStyle = stroke; ctx.shadowBlur = 12 + pulse * 15; ctx.shadowColor = theme.isBlack ? '#000' : stroke;
+  for (let x = 0; x <= W; x += 4) {
+    let y;
+    if (mode === 'real' && timeDataArray) y = cy + ((timeDataArray[Math.floor(x / W * timeDataArray.length)] - 128) / 128) * amp;
+    else { const t = wobbleTime * 4; y = cy + (Math.sin(x * .015 + t) + Math.cos(x * .035 - t * 1.5) * .5 + Math.sin(x * .08 + t * 2) * .25) * amp * .4; }
+    x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    if (Math.random() < .08) pts.push({ x, y, hue: theme.hueBase });
+  }
+  ctx.stroke(); ctx.shadowBlur = 0;
+  if (pulse > .15) spawnBeatParticles(pts, pulse, theme.isMonochrome, theme.isBlack);
+  drawParticles();
+}
+
+const tsunami = []; let kickTriggered = false;
+function processTsunami(pulse) {
+  if (pulse > .65 && !kickTriggered) { tsunami.push({ dist: 0, maxAmp: Math.max(120, H * .28), speed: W * .014, alpha: 1 }); kickTriggered = true; }
+  else if (pulse < .35) kickTriggered = false;
+  for (let i = tsunami.length - 1; i >= 0; i--) { const p = tsunami[i]; p.dist += p.speed; p.alpha -= .016; if (p.alpha <= 0 || p.dist > W * .65) tsunami.splice(i, 1); }
+}
+function drawSeaWave(values, pulse, theme) {
+  ctx.clearRect(0, 0, W, H); processTsunami(pulse);
+  const cy = H * .72, swell = Math.max(25, H * .06) + pulse * Math.max(40, H * .09), sp = wobbleTime * .6, cx = W / 2, active = [];
+  const layers = [{ o: .35, f: .004, s: .5, y: 18, a: .8 }, { o: .55, f: .007, s: -.7, y: 6, a: 1 }, { o: .9, f: .005, s: 1, y: -8, a: 1.25 }];
+  layers.forEach((L, li) => {
+    const hue = (theme.hueBase + li * 12 + 360) % 360; let st, fi;
+    if (theme.isBlack) { st = `rgba(30,41,59,${L.o})`; fi = `rgba(15,23,42,${L.o * .5})`; }
+    else if (theme.isMonochrome) { st = `rgba(255,255,255,${L.o})`; fi = `rgba(220,220,220,${L.o * .15})`; }
+    else { st = `hsla(${hue},${theme.sat}%,${60 + pulse * 15}%,${L.o})`; fi = `hsla(${hue},${theme.sat}%,35%,${L.o * .25})`; }
+    ctx.beginPath(); ctx.lineWidth = 2.5 + pulse * 2; ctx.strokeStyle = st; ctx.fillStyle = fi; ctx.moveTo(0, H);
+    for (let x = 0; x <= W; x += 6) {
+      const t = sp * L.s;
+      const base = Math.sin(x * L.f + t) + Math.cos(x * L.f * 1.6 - t * .8) * .45;
+      const audio = (values[Math.floor(x / W * (HALF_BARS / 2))] || 0) * Math.max(30, H * .06);
+      let ts = 0; const d = Math.abs(x - cx);
+      for (const tp of tsunami) { const diff = Math.abs(d - tp.dist); if (diff < 100) ts += Math.cos(diff / 100 * 1.5708) * tp.maxAmp * tp.alpha; }
+      const y = cy + L.y + base * swell * L.a - audio - ts * L.a;
+      ctx.lineTo(x, y);
+      if (li === 2 && Math.random() < .05) active.push({ x, y, hue });
+    }
+    ctx.lineTo(W, H); ctx.closePath(); ctx.fill(); ctx.stroke();
+  });
+  if (pulse > .15) spawnBeatParticles(active, pulse * .7, theme.isMonochrome, theme.isBlack);
+  drawParticles();
+}
+
+function drawRadial(values, pulse, theme) {
+  ctx.clearRect(0, 0, W, H);
+  const cx = W / 2, cy = H / 2, base = Math.max(130, Math.min(W, H) * .24) + pulse * 20, maxLen = Math.max(90, Math.min(W, H) * .2), total = BAR_COUNT, peaks = [];
+  radialRotation += .003 * (1 + pulse * .5);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(radialRotation);
+  const ring = theme.isBlack ? '#1e293b' : theme.isMonochrome ? '#fff' : `hsl(${theme.hueBase},${theme.sat}%,${60 + pulse * 20}%)`;
+  ctx.beginPath(); ctx.arc(0, 0, base - 4, 0, 6.2832); ctx.lineWidth = 2 + pulse * 4; ctx.strokeStyle = ring; ctx.shadowBlur = 15 + pulse * 20; ctx.shadowColor = theme.isBlack ? '#000' : ring; ctx.stroke(); ctx.shadowBlur = 0;
+  ctx.lineWidth = Math.max(2, Math.PI * base * 2 / total * .6);
+  for (let i = 0; i < total; i++) {
+    const vi = i < HALF_BARS ? i : total - 1 - i, v = values[vi], ang = i / total * 6.2832, len = Math.max(4, v * maxLen);
+    const c = Math.cos(ang), s = Math.sin(ang), hue = (theme.hueBase + vi / HALF_BARS * theme.hueRange - pulse * 10 + 360) % 360;
+    ctx.strokeStyle = theme.isBlack ? `hsl(0,0%,${Math.max(10, 30 - v * 20)}%)` : theme.isMonochrome ? `hsl(0,0%,${Math.min(100, 70 + v * 30)}%)` : `hsl(${hue},${theme.sat}%,${50 + v * 30}%)`;
+    ctx.beginPath(); ctx.moveTo(c * base, s * base); ctx.lineTo(c * (base + len), s * (base + len)); ctx.stroke();
+    if (v > .3) { const wa = ang + radialRotation; peaks.push({ x: cx + Math.cos(wa) * (base + len), y: cy + Math.sin(wa) * (base + len), hue, angle: wa }); }
+  }
+  ctx.restore();
+  if (pulse > .15) spawnBeatParticles(peaks, pulse, theme.isMonochrome, theme.isBlack);
+  drawParticles();
+}
+
+const applyCameraPulse = k => { vizWrap.style.transform = `scale(${1 + Math.min(.03, k * .03)})`; };
+const applySnareFlash = s => { snareFlashEl.style.opacity = String(Math.min(.25, s * .25)); };
+let vizGain = 1;                       // 0→1 ramp used by the opening sequence
+const gainBuf = new Float32Array(HALF_BARS);
+function render(values, kick) {
+  if (vizGain < .999) {
+    for (let i = 0; i < HALF_BARS; i++) gainBuf[i] = values[i] * vizGain;
+    values = gainBuf; kick *= vizGain; vizWrap.style.opacity = String(vizGain);
+  } else if (vizWrap.style.opacity) vizWrap.style.opacity = '';
+  if (vizStyle === 'wave') drawWave(kick, currentTheme);
+  else if (vizStyle === 'sea_wave') drawSeaWave(values, kick, currentTheme);
+  else if (vizStyle === 'radial') drawRadial(values, kick, currentTheme);
+  else drawBars(values, kick, currentTheme);
+}
+
+function tickAmbient() {
+  ambientPhase += .08 * currentSpeed; wobbleTime += .05 * currentSpeed;
+  const kick = Math.pow(Math.max(0, Math.sin(ambientPhase * .5)), 10);
+  const snare = Math.pow(Math.max(0, Math.sin(ambientPhase * .5 + 1.6)), 12);
+  const hat = Math.max(0, Math.sin(ambientPhase * 3.1)) > .94;
+  for (let i = 0; i < HALF_BARS; i++) {
+    const b = Math.sin(ambientPhase + i * .2) * .5 + .5, w = Math.cos(ambientPhase * 2 + i * .1) * .2;
+    renderValues[i] = Math.max(.04, Math.min(.85, b * .6 + w + .05 + kick * .3));
+  }
+  if (hat) spawnSparkles(.5, currentTheme.isMonochrome, currentTheme.isBlack);
+  applyCameraPulse(kick); applySnareFlash(snare); render(renderValues, kick);
+}
+
+function tickReal() {
+  analyser.getByteFrequencyData(dataArray); analyser.getByteTimeDomainData(timeDataArray);
+  let frameMax = 0;
+  for (let i = 0; i < HALF_BARS; i++) {
+    const a = binIndices[i]; let b = binIndices[i + 1]; if (b <= a) b = a + 1;
+    let sum = 0; for (let j = a; j < b; j++) sum += dataArray[j];
+    let avg = sum / (b - a) / 255 * (1 + Math.pow(i / HALF_BARS, 1.8) * 2.2);
+    if (avg > frameMax) frameMax = avg; rawValues[i] = avg;
+  }
+  peakVolume = Math.max(peakVolume * .992, frameMax, .15);
+  const gain = 1 / peakVolume;
+  let bass = 0; for (let i = 0; i < 6; i++) bass += rawValues[i]; bass /= 6;
+  if (bass > .2 && bass - bassHistory > .07) kickPulse = 1; kickPulse = Math.max(0, kickPulse - .08); bassHistory = bassHistory * .75 + bass * .25;
+  let mid = 0; for (let i = 12; i < 28; i++) mid += rawValues[i]; mid /= 16;
+  if (mid > .16 && mid - snareHistory > .065) snarePulse = 1; snarePulse = Math.max(0, snarePulse - .15); snareHistory = snareHistory * .7 + mid * .3;
+  let hi = 0; for (let i = HALF_BARS - 10; i < HALF_BARS; i++) hi += rawValues[i]; hi /= 10;
+  if (hi > .12 && hi - hihatHistory > .05) hihatPulse = 1; hihatPulse = Math.max(0, hihatPulse - .22); hihatHistory = hihatHistory * .6 + hi * .4;
+  for (let i = 0; i < HALF_BARS; i++) {
+    const t = Math.min(1, rawValues[i] * gain * .85);
+    smoothed[i] += (t - smoothed[i]) * (t > smoothed[i] ? .75 : (i < 10 ? .18 : .28));
+  }
+  wobbleTime += .05;
+  if (hihatPulse > .4) spawnSparkles(hihatPulse, currentTheme.isMonochrome, currentTheme.isBlack);
+  applyCameraPulse(kickPulse); applySnareFlash(snarePulse); render(smoothed, kickPulse);
+}
+
+function loop() {
+  try { updateScrubber(); if (mode === 'real' && analyser) tickReal(); else tickAmbient(); } catch (e) { console.error(e); }
+  requestAnimationFrame(loop);
+}
+
+/* real audio-reactive: needs a click (browser rule), so the intro button triggers it */
+async function enableRealAudio() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { setStatus('Tab-audio capture is not supported here — ambient mode.', 5000); return false; }
+  try {
+    setStatus('Pick "This Tab" and make sure "Share tab audio" is ENABLED.', 6000);
+    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true, preferCurrentTab: true, selfBrowserSurface: 'include', systemAudio: 'exclude' });
+    const tracks = stream.getAudioTracks();
+    if (!tracks.length) { setStatus('No audio was shared — tick "Share tab audio". Staying in ambient mode.', 6000); stream.getTracks().forEach(t => t.stop()); return false; }
+    stream.getVideoTracks().forEach(t => t.stop());
+    if (audioCtx) { try { audioCtx.close(); } catch {} }
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser(); analyser.fftSize = 1024; analyser.smoothingTimeConstant = .35;
+    dataArray = new Uint8Array(analyser.frequencyBinCount); timeDataArray = new Uint8Array(analyser.fftSize);
+    updateBinIndices(analyser.frequencyBinCount, audioCtx.sampleRate);
+    src.connect(analyser); mode = 'real'; setStatus('Audio-reactive mode engaged!');
+    tracks[0].addEventListener('ended', () => { mode = 'ambient'; setStatus('Audio sharing ended — back to ambient.'); });
+    return true;
+  } catch { setStatus('Audio capture cancelled — ambient mode.'); return false; }
+}
+$('capture-btn').addEventListener('click', () => enableRealAudio());
+$('sim-btn').addEventListener('click', () => { mode = 'ambient'; setStatus('Ambient mode running.'); });
+const togglePanel = () => { panelEl.classList.toggle('hidden'); statusEl.classList.toggle('hidden'); };
+$('toggle-panel').addEventListener('click', togglePanel);
+addEventListener('keydown', e => { if ((e.key === 'h' || e.key === 'H') && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) togglePanel(); });
+
+/* flush storage whenever the tab is hidden/closed */
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') Store.flushNow(); });
+addEventListener('pagehide', () => Store.flushNow());
+
+/* ---------------- cinematic intro ---------------- */
+const Intro = (() => {
+  const el = $('intro-screen'), cv = $('intro-canvas'), c = cv.getContext('2d'), content = $('intro-content'), flash = $('intro-flash');
+  const startBtn = $('intro-start-btn'), skipBtn = $('intro-skip-btn'), bootFill = $('boot-fill'), bootLine = $('boot-line'), titleEl = $('intro-title');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const held = [panelEl, statusEl, $('toggle-panel'), $('brand-logo-container')];
+  const queue = [], sleep = ms => new Promise(r => setTimeout(r, ms)), ease = x => 1 - Math.pow(1 - x, 3), clamp = x => Math.min(1, Math.max(0, x));
+  let w = 0, h = 0, t0 = performance.now(), raf = 0, state = 'boot', launchAt = 0, ready = false, finished = false;
+
+  'DART VIZ'.split('').forEach((ch, i) => { const s = document.createElement('span'); s.textContent = ch; s.style.animationDelay = (.5 + i * .09) + 's'; if (ch === ' ') s.style.width = '.35em'; titleEl.appendChild(s); });
+  const N = reduce ? 50 : 180, B = 72;
+  const P = Array.from({ length: N }, () => ({ a: Math.random() * 6.2832, d: .35 + Math.random() * .9, s: .3 + Math.random() * .9, hue: 165 + Math.random() * 60, o: Math.random() }));
+  function size() { const dpr = Math.min(devicePixelRatio || 1, 2); w = innerWidth; h = innerHeight; cv.width = w * dpr; cv.height = h * dpr; c.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  addEventListener('resize', size); size();
+
+  function frame(now) {
+    raf = requestAnimationFrame(frame);
+    const t = (now - t0) / 1000, L = state === 'launch' ? (now - launchAt) / 1000 : 0;
+    const cx = w / 2, cy = h / 2, R = Math.max(140, Math.min(w, h) * .3), conv = ease(clamp(t / (reduce ? .5 : 2.4)));
+    c.globalCompositeOperation = 'source-over'; c.fillStyle = 'rgba(2,6,15,.26)'; c.fillRect(0, 0, w, h);
+        // scan line + pulsing guide rings
+    const sy = (t * 140) % (h + 40) - 20; c.fillStyle = 'rgba(0,210,255,.05)'; c.fillRect(0, sy, w, 2);
+    for (let k = 0; k < 3; k++) { const rr = R * (.55 + k * .22) + Math.sin(t * 1.2 + k) * 4 + L * L * w; c.strokeStyle = `rgba(0,210,255,${.07 * conv * (1 - clamp(L))})`; c.lineWidth = 1; c.beginPath(); c.arc(cx, cy, rr, 0, 6.2832); c.stroke(); }
+    // procedural equalizer ring
+    const grow = (state === 'launch') ? 1 + L * 3 : 1, fade = 1 - clamp(L * 1.1);
+    c.lineWidth = 3; c.lineCap = 'round';
+    for (let i = 0; i < B; i++) {
+      const ang = i / B * 6.2832 + t * .15, n = Math.abs(Math.sin(t * 2.1 + i * .55) * Math.cos(t * 1.3 + i * .23));
+      const r0 = R + L * L * w * .8, len = (8 + n * 46 * grow) * conv, hue = 190 + Math.sin(i / B * 6.2832 + t) * 45;
+      c.strokeStyle = `hsla(${hue},95%,${58 + n * 25}%,${(.3 + .55 * conv) * fade})`;
+      c.beginPath(); c.moveTo(cx + Math.cos(ang) * r0, cy + Math.sin(ang) * r0); c.lineTo(cx + Math.cos(ang) * (r0 + len), cy + Math.sin(ang) * (r0 + len)); c.stroke();
+    }
+    // particles spiral in and lock onto the ring
+    for (const p of P) {
+      const ang = p.a + t * p.s * .5 * (1 + L * 4);
+      let dist = R * (1 + p.d * 2.4 * (1 - conv)) + (p.o - .5) * 16 * conv + L * L * w * .9 * p.s;
+      const al = (.15 + conv * .75) * (1 - clamp(L * .9));
+      c.fillStyle = `hsla(${p.hue},95%,72%,${al})`; c.beginPath(); c.arc(cx + Math.cos(ang) * dist, cy + Math.sin(ang) * dist, 1 + p.o * 1.8, 0, 6.2832); c.fill();
+    }
+    if (state === 'launch') { // shockwave
+      c.strokeStyle = `rgba(160,255,255,${Math.max(0, 1 - L * 1.1)})`; c.lineWidth = 1 + 7 * Math.max(0, 1 - L);
+      c.beginPath(); c.arc(cx, cy, R + ease(clamp(L / 1.4)) * Math.hypot(w, h) * .6, 0, 6.2832); c.stroke();
+    }
+    if (!ready) { // boot progress
+      const p = Math.min(.92, t / (reduce ? .6 : 2.8) * .92); bootFill.style.width = (p * 100) + '%';
+      const lines = ['LOADING SPECTRUM ENGINE', 'TUNING FREQUENCY BINS', 'SYNCING STORAGE'];
+      bootLine.textContent = lines[Math.min(2, Math.floor(p * 3.2))] + '…';
     }
   }
 
-  favBtn.addEventListener('click', () => {
-    if(!currentVideoId) return setStatus('Load a video first before adding to favorites!');
-    const index = videoFavorites.findIndex(item => item.id === currentVideoId);
-    if(index > -1) {
-      videoFavorites.splice(index, 1);
-      setStatus('Removed from Favorites');
-    } else {
-      videoFavorites.unshift({ id: currentVideoId, title: currentVideoTitle });
-      favCurrentPage = 1;
-      setStatus('Saved to Favorites! ⭐');
-    }
-    localStorage.setItem('yt_viz_favorites', JSON.stringify(videoFavorites));
-    updateFavoritesDropdown();
-  });
+  function release() {
+    held.forEach((e, i) => setTimeout(() => e.classList.remove('intro-hold'), reduce ? 0 : i * 180));
+    if (reduce) { vizGain = 1; return; }
+    const t1 = performance.now(), dur = 2600;
+    (function step(now) { const k = clamp((now - t1) / dur); vizGain = ease(k); if (k < 1) requestAnimationFrame(step); })(t1);
+  }
+  function finish() {
+    if (finished) return; finished = true; cancelAnimationFrame(raf);
+    el.style.display = 'none'; el.style.webkitMaskImage = el.style.maskImage = '';
+    queue.splice(0).forEach(f => { try { f(); } catch {} });
+  }
+  function forceOpen() { vizGain = 1; held.forEach(e => e.classList.remove('intro-hold')); el.style.display = 'none'; finished = true; cancelAnimationFrame(raf); queue.splice(0).forEach(f => { try { f(); } catch {} }); }
 
-  exportListBtn.addEventListener('click', async () => {
-    if (videoFavorites.length === 0) {
-      return setStatus('Favorites list is empty! Add videos first before copying.');
-    }
+  async function launch(withAudio) {
+    if (state !== 'boot' || !ready) return;
+    state = 'wait'; startBtn.disabled = skipBtn.disabled = true;
+    const audioP = withAudio ? enableRealAudio() : Promise.resolve(false);   // must be called synchronously inside the click
+    if (withAudio) bootLine.textContent = 'SELECT “THIS TAB” + ENABLE “SHARE TAB AUDIO”';
+    const ok = await audioP;
+    state = 'launch'; launchAt = performance.now();
+    bootLine.textContent = ok ? 'AUDIO LINK ESTABLISHED' : 'AMBIENT MODE ENGAGED'; bootFill.style.width = '100%';
+    if (reduce) { el.classList.add('fade-out'); release(); setTimeout(finish, 950); return; }
+    content.classList.add('leaving'); flash.classList.add('go');
+    await sleep(450);
+    release();
+    const start = performance.now(), dur = 1700, maxR = Math.hypot(w, h) / 2 + 80;
+    await new Promise(res => (function step(now) {
+      const k = clamp((now - start) / dur), r = ease(k) * maxR;
+      el.style.webkitMaskImage = el.style.maskImage = `radial-gradient(circle at 50% 50%, transparent ${r}px, #000 ${r + 70}px)`;
+      k < 1 ? requestAnimationFrame(step) : res();
+    })(start));
+    finish();
+  }
+  startBtn.addEventListener('click', () => launch(true));
+  skipBtn.addEventListener('click', () => launch(false));
+  addEventListener('keydown', e => { if (e.key === 'Escape' && ready && state === 'boot') launch(false); });
 
-    const payload = videoFavorites.map((item, index) => ({
-      index: index + 1,
-      title: item.title,
-      url: `https://youtu.be/${item.id}`,
-      id: item.id
-    }));
-
-    const jsonString = JSON.stringify(payload, null, 2);
-
-    try {
-      await navigator.clipboard.writeText(jsonString);
-      setStatus(`Copied ${videoFavorites.length} video link(s) & titles to clipboard!`);
-    } catch (err) {
-      prompt("Copy your video list below:", jsonString);
-    }
-  });
-
-  importListBtn.addEventListener('click', async () => {
-    let input = "";
-    try {
-      input = await navigator.clipboard.readText();
-    } catch (err) {
-      input = prompt("Paste your video list JSON here:");
-    }
-
-    if (!input || !input.trim()) return;
-
-    try {
-      const parsed = JSON.parse(input);
-      let importedCount = 0;
-
-      if (Array.isArray(parsed)) {
-        parsed.forEach(item => {
-          const id = item.id || extractVideoId(item.url || item);
-          const title = item.title || "YouTube Video";
-          if (id && !videoFavorites.some(fav => fav.id === id)) {
-            videoFavorites.push({ id, title });
-            importedCount++;
-          }
+  return {
+    start(storeP) {
+      try {
+        vizGain = reduce ? 1 : 0; held.forEach(e => e.classList.add('intro-hold')); raf = requestAnimationFrame(frame);
+        Promise.all([sleep(reduce ? 600 : 3000), Promise.race([storeP.catch(() => {}), sleep(5000)])]).then(() => {
+          ready = true; bootFill.style.width = '100%';
+          bootLine.textContent = `${Store.data.favorites.length} FAVORITES RESTORED · SYSTEMS READY`;
+          startBtn.classList.add('ready'); skipBtn.classList.add('ready'); startBtn.focus();
         });
+      } catch (e) { console.error(e); forceOpen(); }
+    },
+    whenDone(fn) { finished ? fn() : queue.push(fn); }
+  };
+})();
 
-        localStorage.setItem('yt_viz_favorites', JSON.stringify(videoFavorites));
-        updateFavoritesDropdown();
-        setStatus(`Successfully imported ${importedCount} new video(s)!`);
-      } else {
-        setStatus('Invalid format. Paste a valid JSON array.');
-      }
-    } catch (e) {
-      setStatus('Failed to parse list. Make sure it is valid text/JSON.');
+/* ---------------- boot ---------------- */
+const storeReady = Store.init(refreshUI).then(r => {
+  refreshUI();
+  Intro.whenDone(() => {
+    const n = Store.data.favorites.length;
+    if (r.needsGesture) {
+      setStatus('Backup folder found — click anywhere once to reconnect it.', 6000);
+      const once = async () => { removeEventListener('pointerdown', once, true); const ok = await Store.reconnect(true); refreshUI(); setStatus(ok ? 'Backup folder reconnected ✔' : 'Folder not reconnected — use the 📁 button.'); };
+      addEventListener('pointerdown', once, true);
+    } else if (!Store.hasHandle && Store.supported) {
+      setStatus(n ? `${n} favorites loaded. Tip: set a 📁 backup folder for extra safety.` : 'Tip: set a 📁 backup folder (e.g. DART_VIZ_DATA on Desktop) to never lose favorites.', 6000);
     }
   });
-
-  async function addToHistory(id) {
-    const title = await showPreview(id);
-    setTimeout(hidePreview, 3000);
-
-    videoHistory = videoHistory.filter(item => item.id !== id);
-    videoHistory.unshift({ id, title });
-    if(videoHistory.length > 10) videoHistory.pop();
-
-    localStorage.setItem('yt_viz_history', JSON.stringify(videoHistory));
-    updateHistoryDropdown();
-    updateFavBtnState();
-  }
-
-  updateHistoryDropdown();
-  updateFavoritesDropdown();
-
-  historySelectEl.addEventListener('change', (e) => {
-    const id = e.target.value;
-    if(id) {
-      inputEl.value = `https://youtu.be/${id}`;
-      loadVideoFromInput();
-    }
-  });
-
-  favSelectEl.addEventListener('change', (e) => {
-    const id = e.target.value;
-    if(id) {
-      inputEl.value = `https://youtu.be/${id}`;
-      loadVideoFromInput();
-    }
-  });
-
-  speedSelectEl.addEventListener('change', (e) => {
-    currentSpeed = parseFloat(e.target.value);
-    if(player && typeof player.setPlaybackRate === 'function') {
-      player.setPlaybackRate(currentSpeed);
-      setStatus(`Playback speed set to ${currentSpeed}x`);
-    }
-  });
-
-  vizStyleSelectEl.addEventListener('change', (e) => {
-    vizStyle = e.target.value;
-  });
-
-  function resizeVideoCover() {
-    const iframe = document.querySelector('#video-stage iframe');
-    if(!iframe) return;
-    const aspect = 16/9;
-    const winW = window.innerWidth, winH = window.innerHeight;
-    let w, h;
-    if (winW / winH > aspect) { w = winW * 1.02; h = w / aspect; }
-    else { h = winH * 1.02; w = h * aspect; }
-    iframe.style.width = `${w}px`;
-    iframe.style.height = `${h}px`;
-  }
-  window.addEventListener('resize', resizeVideoCover);
-
-  function setIframeVideo(videoId) {
-    const target = document.getElementById('yt-player-target');
-    target.innerHTML = '';
-    const iframe = document.createElement('iframe');
-    iframe.setAttribute('allow', 'autoplay; encrypted-media');
-    iframe.setAttribute('allowfullscreen', 'true');
-    iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=0&modestbranding=1&rel=0&playsinline=1&loop=1&playlist=${videoId}&mute=1&origin=${encodeURIComponent(window.location.origin || 'https://localhost')}`;
-    target.appendChild(iframe);
-    resizeVideoCover();
-  }
-
-  function loadVideoFromInput() {
-    const id = extractVideoId(inputEl.value);
-    if(!id) return setStatus('Could not read a video ID — check the link.');
-    placeholderEl.style.display = 'none';
-    currentVideoId = id;
-
-    addToHistory(id);
-
-    if(typeof YT !== 'undefined' && YT.Player) {
-      if(!player) {
-        player = new YT.Player('yt-player-target', {
-          videoId: id,
-          playerVars: { autoplay: 1, controls: 0, modestbranding: 1, rel: 0, loop: 1, playlist: id },
-          events: {
-            onReady: (e) => { 
-              e.target.playVideo(); 
-              e.target.setPlaybackRate(currentSpeed);
-              resizeVideoCover(); 
-            },
-            onError: () => setIframeVideo(id)
-          }
-        });
-      } else {
-        player.loadVideoById(id);
-        setTimeout(() => player.setPlaybackRate(currentSpeed), 500);
-      }
-    } else {
-      setIframeVideo(id);
-    }
-    setStatus('Video loading...');
-  }
-
-  document.getElementById('load-btn').addEventListener('click', loadVideoFromInput);
-  inputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') loadVideoFromInput(); });
-  
-  inputEl.addEventListener('input', () => {
-    const id = extractVideoId(inputEl.value);
-    if(id) showPreview(id);
-    else hidePreview();
-  });
-
-  const THEMES = [
-    { name: 'Deep Blue',    hueBase: 195, hueRange: 30, sat: 90 },
-    { name: 'Neon Green',   hueBase: 140, hueRange: 35, sat: 100 },
-    { name: 'Neon Purple',  hueBase: 275, hueRange: 35, sat: 95 },
-    { name: 'Void Black',   hueBase: 0,   hueRange: 0,  sat: 0,   isMonochrome: true, isBlack: true },
-    { name: 'Crimson Red',   hueBase: 350, hueRange: 20, sat: 95 },
-    { name: 'Pure White',   hueBase: 0,   hueRange: 0,  sat: 0,  isMonochrome: true },
-    { name: 'Ruby Glow',     hueBase: 335, hueRange: 30, sat: 85 },
-    { name: 'Sapphire Glow', hueBase: 215, hueRange: 35, sat: 85 },
-    { name: 'Cyan Shift',    hueBase: 180, hueRange: 25, sat: 95 },
-    { name: 'Oceanic Glow',  hueBase: 170, hueRange: 45, sat: 80 },
-    { name: 'Electric Ice',  hueBase: 190, hueRange: 15, sat: 100 }
-  ];
-  let currentTheme = THEMES[0];
-
-  THEMES.forEach((t, i) => {
-    const opt = document.createElement('option');
-    opt.value = i; opt.textContent = t.name;
-    if(t === currentTheme) opt.selected = true;
-    themeSelectEl.appendChild(opt);
-  });
-  themeSelectEl.addEventListener('change', (e) => {
-    currentTheme = THEMES[parseInt(e.target.value, 10)];
-  });
-
-  let W, H;
-  function resizeCanvas() {
-    const rect = canvas.parentElement.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    W = rect.width; H = rect.height;
-  }
-  window.addEventListener('resize', resizeCanvas);
-  resizeCanvas();
-
-  const BAR_COUNT = 96;
-  const HALF_BARS = Math.floor(BAR_COUNT / 2);
-
-  let audioCtx = null, analyser = null, dataArray = null, timeDataArray = null;
-  let mode = 'ambient';
-  let ambientPhase = 0;
-  let wobbleTime = 0;
-  let radialRotation = 0;
-
-  let kickPulse = 0, bassHistory = 0;
-  let snarePulse = 0, snareHistory = 0;
-  let hihatPulse = 0, hihatHistory = 0;
-  let peakVolume = 0.2;
-
-  const MAX_PARTICLES = 80;
-  const particles = [];
-
-  class Particle {
-    constructor(x, y, hue, power, sparkle, isMono, isBlack, angleDir) {
-      this.init(x, y, hue, power, sparkle, isMono, isBlack, angleDir);
-    }
-    init(x, y, hue, power, sparkle, isMono, isBlack, angleDir) {
-      this.x = x; this.y = y;
-      const angle = angleDir !== undefined ? angleDir : (-Math.PI / 2 + (Math.random() - 0.5) * (sparkle ? 2.4 : 1.2));
-      const speed = (sparkle ? 1 : 2) + Math.random() * (sparkle ? 3 : 6) * (0.5 + power);
-      this.vx = Math.cos(angle) * speed;
-      this.vy = Math.sin(angle) * speed;
-      this.radius = sparkle ? (0.8 + Math.random() * 1.2) : (1.5 + Math.random() * 2.5);
-      this.hue = sparkle ? (isMono ? 0 : 190) : hue + (Math.random() * 12 - 6);
-      this.isMono = isMono;
-      this.isBlack = isBlack;
-      this.sparkle = sparkle;
-      this.alpha = 0.8 + Math.random() * 0.2;
-      this.decay = (sparkle ? 0.04 : 0.02) + Math.random() * 0.02;
-      this.gravity = sparkle ? 0.04 : (angleDir !== undefined ? 0 : 0.08);
-    }
-    update() {
-      this.x += this.vx; this.y += this.vy;
-      this.vy += this.gravity;
-      this.vx *= 0.98;
-      this.alpha -= this.decay;
-    }
-    draw(ctx) {
-      if(this.alpha <= 0) return;
-      ctx.globalAlpha = Math.max(0, this.alpha);
-      if (this.isBlack) {
-        ctx.fillStyle = '#0a0d14';
-      } else {
-        ctx.fillStyle = this.isMono ? '#ffffff' : (this.sparkle ? '#ffffff' : `hsl(${this.hue}, 95%, 75%)`);
-      }
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  function spawnBeatParticles(positions, pulsePower, isMono, isBlack) {
-    if (pulsePower < 0.2) return;
-    const count = Math.floor(4 + pulsePower * 8);
-    for (let i = 0; i < count; i++) {
-      const pos = positions[Math.floor(Math.random() * positions.length)];
-      if (pos) {
-        if (particles.length < MAX_PARTICLES) {
-          particles.push(new Particle(pos.x, pos.y, pos.hue, pulsePower, false, isMono, isBlack, pos.angle));
-        }
-      }
-    }
-  }
-
-  function spawnSparkles(power, isMono, isBlack) {
-    const count = Math.floor(2 + power * 6);
-    for (let i = 0; i < count; i++) {
-      if (particles.length < MAX_PARTICLES) {
-        particles.push(new Particle(Math.random() * W, H * (0.15 + Math.random() * 0.3), 0, power, true, isMono, isBlack));
-      }
-    }
-  }
-
-  function updateAndDrawParticles() {
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i];
-      p.update();
-      if (p.alpha <= 0) particles.splice(i, 1);
-      else p.draw(ctx);
-    }
-    ctx.globalAlpha = 1.0;
-  }
-
-  const smoothed = new Float32Array(HALF_BARS);
-  const rawValues = new Float32Array(HALF_BARS);
-  const renderValues = new Float32Array(HALF_BARS);
-  const peakHeights = new Float32Array(HALF_BARS);
-
-  const binIndices = new Int32Array(HALF_BARS + 1);
-  function updateBinIndices(fftBinCount, sampleRate) {
-    const minFreq = 30, maxFreq = 16000;
-    for (let i = 0; i <= HALF_BARS; i++) {
-      const logFreq = minFreq * Math.pow(maxFreq / minFreq, i / HALF_BARS);
-      const binIndex = Math.floor((logFreq / (sampleRate / 2)) * fftBinCount);
-      binIndices[i] = Math.min(fftBinCount - 1, Math.max(0, binIndex));
-    }
-  }
-
-  function drawBars(values, pulse, theme) {
-    ctx.clearRect(0, 0, W, H);
-    const gap = Math.max(2, W * 0.0035);
-    const usableWidth = W - gap * (HALF_BARS * 2 - 1);
-    const barWidth = Math.max(2, usableWidth / (HALF_BARS * 2));
-    const centerX = W / 2;
-    const maxBarHeight = Math.max(220, H * 0.55);
-    const activeBarPeaks = [];
-
-    for (let i = 0; i < HALF_BARS; i++) {
-      const v = values[i];
-      const wobble = 1 + Math.sin(wobbleTime * 2.2 + i * 0.4) * 0.02;
-      const barHeight = Math.max(4, v * maxBarHeight * wobble);
-      const y = H - barHeight;
-      const xRight = centerX + i * (barWidth + gap);
-      const xLeft = centerX - (i + 1) * (barWidth + gap);
-
-      let fillStyle;
-      const hue = (theme.hueBase + (i / HALF_BARS) * theme.hueRange - pulse * 8 + 360) % 360;
-
-      if (theme.isBlack) {
-        fillStyle = `hsl(0, 0%, ${Math.max(5, 20 - v * 15)}%)`;
-      } else if (theme.isMonochrome) {
-        fillStyle = `hsl(0, 0%, ${Math.min(100, 70 + v * 30 + pulse * 15)}%)`;
-      } else {
-        fillStyle = `hsl(${hue}, ${theme.sat}%, ${50 + v * 28 + pulse * 10}%)`;
-      }
-
-      if (barHeight > peakHeights[i]) peakHeights[i] = barHeight;
-      else peakHeights[i] = Math.max(barHeight, peakHeights[i] - H * 0.012);
-
-      ctx.fillStyle = fillStyle;
-      ctx.fillRect(xRight, y, barWidth, barHeight);
-      ctx.fillRect(xLeft, y, barWidth, barHeight);
-
-      const capH = 2.5;
-      const capY = H - peakHeights[i] - capH - 1;
-      ctx.fillStyle = theme.isBlack ? '#334155' : '#ffffff';
-      ctx.fillRect(xRight, capY, barWidth, capH);
-      ctx.fillRect(xLeft, capY, barWidth, capH);
-
-      activeBarPeaks.push({ x: xRight + barWidth / 2, y, hue });
-      activeBarPeaks.push({ x: xLeft + barWidth / 2, y, hue });
-    }
-
-    if (pulse > 0.15) spawnBeatParticles(activeBarPeaks, pulse, theme.isMonochrome, theme.isBlack);
-    updateAndDrawParticles();
-  }
-
-  function drawWave(pulse, theme) {
-    ctx.clearRect(0, 0, W, H);
-    const centerY = H * 0.7;
-    const amplitude = Math.max(120, H * 0.35) * (0.6 + pulse * 0.4);
-    const points = [];
-
-    ctx.beginPath();
-    ctx.lineWidth = 3 + pulse * 3;
-
-    let strokeStyle;
-    if (theme.isBlack) {
-      strokeStyle = `rgba(15, 23, 42, ${0.9 + pulse * 0.1})`;
-    } else if (theme.isMonochrome) {
-      strokeStyle = `rgba(255, 255, 255, ${0.8 + pulse * 0.2})`;
-    } else {
-      strokeStyle = `hsl(${theme.hueBase}, ${theme.sat}%, ${60 + pulse * 20}%)`;
-    }
-    ctx.strokeStyle = strokeStyle;
-    ctx.shadowBlur = 12 + pulse * 15;
-    ctx.shadowColor = theme.isBlack ? '#000000' : strokeStyle;
-
-    for (let x = 0; x <= W; x += 4) {
-      let y = centerY;
-      if (mode === 'real' && timeDataArray) {
-        const index = Math.floor((x / W) * timeDataArray.length);
-        const v = (timeDataArray[index] - 128) / 128.0;
-        y = centerY + v * amplitude;
-      } else {
-        const fastTime = wobbleTime * 4;
-        const wave1 = Math.sin(x * 0.015 + fastTime);
-        const wave2 = Math.cos(x * 0.035 - fastTime * 1.5) * 0.5;
-        const wave3 = Math.sin(x * 0.08 + fastTime * 2) * 0.25;
-        y = centerY + (wave1 + wave2 + wave3) * amplitude * 0.4;
-      }
-
-      if (x === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-
-      if (Math.random() < 0.08) points.push({ x, y, hue: theme.hueBase });
-    }
-
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    if (pulse > 0.15) spawnBeatParticles(points, pulse, theme.isMonochrome, theme.isBlack);
-    updateAndDrawParticles();
-  }
-
-  // --- TSUNAMI BEAT KICK SYSTEM ---
-  const tsunamiPulses = [];
-  let isKickTriggered = false;
-
-  function processTsunamiKick(pulse) {
-    if (pulse > 0.65 && !isKickTriggered) {
-      tsunamiPulses.push({
-        dist: 0,
-        maxAmp: Math.max(120, H * 0.28),
-        speed: W * 0.014,
-        alpha: 1.0
-      });
-      isKickTriggered = true;
-    } else if (pulse < 0.35) {
-      isKickTriggered = false;
-    }
-
-    for (let i = tsunamiPulses.length - 1; i >= 0; i--) {
-      const p = tsunamiPulses[i];
-      p.dist += p.speed;
-      p.alpha -= 0.016;
-      if (p.alpha <= 0 || p.dist > W * 0.65) {
-        tsunamiPulses.splice(i, 1);
-      }
-    }
-  }
-
-  // --- GENTLE SEA WAVES STYLE WITH TSUNAMI KICK SURGE ---
-  function drawSeaWave(values, pulse, theme) {
-    ctx.clearRect(0, 0, W, H);
-    
-    processTsunamiKick(pulse);
-
-    const centerY = H * 0.72;
-    const baseAmp = Math.max(25, H * 0.06);
-    const swellAmp = baseAmp + (pulse * Math.max(40, H * 0.09));
-    const speed = wobbleTime * 0.6;
-
-    const layers = [
-      { opacity: 0.35, freq: 0.004, speedMult: 0.5, yOffset: 18, ampMult: 0.8 },
-      { opacity: 0.55, freq: 0.007, speedMult: -0.7, yOffset: 6, ampMult: 1.0 },
-      { opacity: 0.90, freq: 0.005, speedMult: 1.0, yOffset: -8, ampMult: 1.25 }
-    ];
-
-    const activePoints = [];
-    const centerX = W / 2;
-
-    layers.forEach((layer, lIdx) => {
-      ctx.beginPath();
-      let strokeStyle, fillStyle;
-
-      const hue = (theme.hueBase + lIdx * 12 + 360) % 360;
-      if (theme.isBlack) {
-        strokeStyle = `rgba(30, 41, 59, ${layer.opacity})`;
-        fillStyle = `rgba(15, 23, 42, ${layer.opacity * 0.5})`;
-      } else if (theme.isMonochrome) {
-        strokeStyle = `rgba(255, 255, 255, ${layer.opacity})`;
-        fillStyle = `rgba(220, 220, 220, ${layer.opacity * 0.15})`;
-      } else {
-        strokeStyle = `hsla(${hue}, ${theme.sat}%, ${60 + pulse * 15}%, ${layer.opacity})`;
-        fillStyle = `hsla(${hue}, ${theme.sat}%, 35%, ${layer.opacity * 0.25})`;
-      }
-
-      ctx.lineWidth = 2.5 + pulse * 2;
-      ctx.strokeStyle = strokeStyle;
-      ctx.fillStyle = fillStyle;
-
-      ctx.moveTo(0, H);
-
-      for (let x = 0; x <= W; x += 6) {
-        const t = speed * layer.speedMult;
-        const sineWave1 = Math.sin(x * layer.freq + t);
-        const sineWave2 = Math.cos(x * layer.freq * 1.6 - t * 0.8) * 0.45;
-
-        let audioSwell = 0;
-        if (values) {
-          const sampleIdx = Math.floor((x / W) * (HALF_BARS / 2));
-          audioSwell = (values[sampleIdx] || 0) * Math.max(30, H * 0.06);
-        }
-
-        // Calculate Outward-Splitting Tsunami Height
-        let tsunamiSwell = 0;
-        const distFromCenter = Math.abs(x - centerX);
-        for (let pIdx = 0; pIdx < tsunamiPulses.length; pIdx++) {
-          const tp = tsunamiPulses[pIdx];
-          const diff = Math.abs(distFromCenter - tp.dist);
-          const waveWidth = 100;
-          if (diff < waveWidth) {
-            const waveShape = Math.cos((diff / waveWidth) * (Math.PI / 2));
-            tsunamiSwell += waveShape * tp.maxAmp * tp.alpha;
-          }
-        }
-
-        const y = centerY + layer.yOffset + (sineWave1 + sineWave2) * swellAmp * layer.ampMult - audioSwell - (tsunamiSwell * layer.ampMult);
-
-        ctx.lineTo(x, y);
-
-        if (lIdx === 2 && Math.random() < 0.05) {
-          activePoints.push({ x, y, hue });
-        }
-      }
-
-      ctx.lineTo(W, H);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    });
-
-    if (pulse > 0.15) spawnBeatParticles(activePoints, pulse * 0.7, theme.isMonochrome, theme.isBlack);
-    updateAndDrawParticles();
-  }
-
-  function drawRadial(values, pulse, theme) {
-    ctx.clearRect(0, 0, W, H);
-    const centerX = W / 2;
-    const centerY = H / 2;
-    const baseRadius = Math.max(130, Math.min(W, H) * 0.24) + (pulse * 20);
-    const maxBarLen = Math.max(90, Math.min(W, H) * 0.20);
-    const totalBars = HALF_BARS * 2;
-    const activePeaks = [];
-
-    radialRotation += 0.003 * (1 + pulse * 0.5);
-
-    ctx.save();
-    ctx.translate(centerX, centerY);
-    ctx.rotate(radialRotation);
-
-    ctx.beginPath();
-    ctx.arc(0, 0, baseRadius - 4, 0, Math.PI * 2);
-    ctx.lineWidth = 2 + pulse * 4;
-    let ringColor = theme.isBlack ? '#1e293b' : (theme.isMonochrome ? '#ffffff' : `hsl(${theme.hueBase}, ${theme.sat}%, ${60 + pulse * 20}%)`);
-    ctx.strokeStyle = ringColor;
-    ctx.shadowBlur = 15 + pulse * 20;
-    ctx.shadowColor = theme.isBlack ? '#000000' : ringColor;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    for (let i = 0; i < totalBars; i++) {
-      const valueIdx = i < HALF_BARS ? i : totalBars - 1 - i;
-      const v = values[valueIdx];
-      const angle = (i / totalBars) * Math.PI * 2;
-      const barLen = Math.max(4, v * maxBarLen);
-
-      const x1 = Math.cos(angle) * baseRadius;
-      const y1 = Math.sin(angle) * baseRadius;
-      const x2 = Math.cos(angle) * (baseRadius + barLen);
-      const y2 = Math.sin(angle) * (baseRadius + barLen);
-
-      const hue = (theme.hueBase + (valueIdx / HALF_BARS) * theme.hueRange - pulse * 10 + 360) % 360;
-      let strokeStyle;
-      if (theme.isBlack) {
-        strokeStyle = `hsl(0, 0%, ${Math.max(10, 30 - v * 20)}%)`;
-      } else if (theme.isMonochrome) {
-        strokeStyle = `hsl(0, 0%, ${Math.min(100, 70 + v * 30)}%)`;
-      } else {
-        strokeStyle = `hsl(${hue}, ${theme.sat}%, ${50 + v * 30}%)`;
-      }
-
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.lineWidth = Math.max(2, (Math.PI * baseRadius * 2 / totalBars) * 0.6);
-      ctx.strokeStyle = strokeStyle;
-      ctx.stroke();
-
-      if (v > 0.3) {
-        const worldAngle = angle + radialRotation;
-        const worldX = centerX + Math.cos(worldAngle) * (baseRadius + barLen);
-        const worldY = centerY + Math.sin(worldAngle) * (baseRadius + barLen);
-        activePeaks.push({ x: worldX, y: worldY, hue, angle: worldAngle });
-      }
-    }
-
-    ctx.restore();
-
-    if (pulse > 0.15) spawnBeatParticles(activePeaks, pulse, theme.isMonochrome, theme.isBlack);
-    updateAndDrawParticles();
-  }
-
-  function applyCameraPulse(kick) {
-    const scale = 1 + Math.min(0.03, kick * 0.03);
-    vizWrap.style.transform = `scale(${scale})`;
-  }
-
-  function applySnareFlash(snare) {
-    snareFlashEl.style.opacity = String(Math.min(0.25, snare * 0.25));
-  }
-
-  function tickAmbient() {
-    ambientPhase += 0.08 * currentSpeed;
-    wobbleTime += 0.05 * currentSpeed;
-
-    const simulatedKick  = Math.pow(Math.max(0, Math.sin(ambientPhase * 0.5)), 10);
-    const simulatedSnare = Math.pow(Math.max(0, Math.sin(ambientPhase * 0.5 + 1.6)), 12);
-    const simulatedHihat = Math.max(0, Math.sin(ambientPhase * 3.1)) > 0.94 ? 1 : 0;
-
-    for (let i = 0; i < HALF_BARS; i++) {
-      const base = Math.sin(ambientPhase + i * 0.2) * 0.5 + 0.5;
-      const wave = Math.cos(ambientPhase * 2 + i * 0.1) * 0.2;
-      renderValues[i] = Math.max(0.04, Math.min(0.85, base * 0.6 + wave + 0.05 + simulatedKick * 0.3));
-    }
-
-    if (simulatedHihat > 0.5) spawnSparkles(0.5, currentTheme.isMonochrome, currentTheme.isBlack);
-    applyCameraPulse(simulatedKick);
-    applySnareFlash(simulatedSnare);
-
-    if (vizStyle === 'wave') drawWave(simulatedKick, currentTheme);
-    else if (vizStyle === 'sea_wave') drawSeaWave(renderValues, simulatedKick, currentTheme);
-    else if (vizStyle === 'radial') drawRadial(renderValues, simulatedKick, currentTheme);
-    else drawBars(renderValues, simulatedKick, currentTheme);
-  }
-
-  function tickReal() {
-    analyser.getByteFrequencyData(dataArray);
-    analyser.getByteTimeDomainData(timeDataArray);
-
-    let frameMax = 0;
-
-    for (let i = 0; i < HALF_BARS; i++) {
-      const startBin = binIndices[i];
-      let endBin = binIndices[i + 1];
-      if (endBin <= startBin) endBin = startBin + 1;
-      let sum = 0, count = 0;
-      for (let j = startBin; j < endBin; j++) { sum += dataArray[j]; count++; }
-      let avg = count ? (sum / count) / 255 : 0;
-      const freqEq = 1 + Math.pow(i / HALF_BARS, 1.8) * 2.2;
-      avg *= freqEq;
-      if (avg > frameMax) frameMax = avg;
-      rawValues[i] = avg;
-    }
-
-    peakVolume = Math.max(peakVolume * 0.992, frameMax, 0.15);
-    const gainFactor = 1 / peakVolume;
-
-    let currentBass = 0;
-    for (let i = 0; i < 6; i++) currentBass += rawValues[i];
-    currentBass /= 6;
-    if (currentBass > 0.2 && (currentBass - bassHistory) > 0.07) kickPulse = 1.0;
-    kickPulse = Math.max(0, kickPulse - 0.08);
-    bassHistory = bassHistory * 0.75 + currentBass * 0.25;
-
-    let currentMid = 0;
-    const midStart = 12, midEnd = 28;
-    for (let i = midStart; i < midEnd; i++) currentMid += rawValues[i];
-    currentMid /= (midEnd - midStart);
-    if (currentMid > 0.16 && (currentMid - snareHistory) > 0.065) snarePulse = 1.0;
-    snarePulse = Math.max(0, snarePulse - 0.15);
-    snareHistory = snareHistory * 0.7 + currentMid * 0.3;
-
-    let currentHigh = 0;
-    const hiStart = HALF_BARS - 10;
-    for (let i = hiStart; i < HALF_BARS; i++) currentHigh += rawValues[i];
-    currentHigh /= (HALF_BARS - hiStart);
-    if (currentHigh > 0.12 && (currentHigh - hihatHistory) > 0.05) hihatPulse = 1.0;
-    hihatPulse = Math.max(0, hihatPulse - 0.22);
-    hihatHistory = hihatHistory * 0.6 + currentHigh * 0.4;
-
-    for (let i = 0; i < HALF_BARS; i++) {
-      const target = Math.min(1.0, rawValues[i] * gainFactor * 0.85);
-      if (target > smoothed[i]) smoothed[i] += (target - smoothed[i]) * 0.75;
-      else smoothed[i] += (target - smoothed[i]) * (i < 10 ? 0.18 : 0.28);
-    }
-
-    wobbleTime += 0.05;
-    if (hihatPulse > 0.4) spawnSparkles(hihatPulse, currentTheme.isMonochrome, currentTheme.isBlack);
-    applyCameraPulse(kickPulse);
-    applySnareFlash(snarePulse);
-
-    if (vizStyle === 'wave') drawWave(kickPulse, currentTheme);
-    else if (vizStyle === 'sea_wave') drawSeaWave(smoothed, kickPulse, currentTheme);
-    else if (vizStyle === 'radial') drawRadial(smoothed, kickPulse, currentTheme);
-    else drawBars(smoothed, kickPulse, currentTheme);
-  }
-
-  function loop() {
-    updateScrubber();
-    if (mode === 'real' && analyser) tickReal();
-    else tickAmbient();
-    requestAnimationFrame(loop);
-  }
-  loop();
-
-  document.getElementById('capture-btn').addEventListener('click', async () => {
-    try {
-      setStatus('Pick "This Tab" and ensure "Share tab audio" is ENABLED.');
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-      const audioTracks = stream.getAudioTracks();
-      if (audioTracks.length === 0) {
-        setStatus('No audio track shared! Check "Share tab audio".');
-        stream.getTracks().forEach(t => t.stop());
-        return;
-      }
-      stream.getVideoTracks().forEach(t => t.stop());
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const source = audioCtx.createMediaStreamSource(stream);
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = 0.35;
-      dataArray = new Uint8Array(analyser.frequencyBinCount);
-      timeDataArray = new Uint8Array(analyser.fftSize);
-      updateBinIndices(analyser.frequencyBinCount, audioCtx.sampleRate);
-      source.connect(analyser);
-      mode = 'real';
-      setStatus('Audio-reactive mode engaged! Syncing with tab audio.');
-      audioTracks[0].addEventListener('ended', () => {
-        mode = 'ambient';
-        setStatus('Audio sharing ended. Returning to ambient mode.');
-      });
-    } catch(err) {
-      setStatus('Audio capture failed or cancelled.');
-    }
-  });
-
-  document.getElementById('sim-btn').addEventListener('click', () => {
-    mode = 'ambient';
-    setStatus('Ambient mode running.');
-  });
-
-  document.getElementById('toggle-panel').addEventListener('click', () => {
-    panelEl.classList.toggle('hidden');
-    statusEl.classList.toggle('hidden');
-  });
+});
+Intro.start(storeReady);
+loop();
 })();
 </script>
 </body>
