@@ -3,85 +3,249 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DART VIZ - Ultimate Audio Visualizer</title>
+<title>DART VIZ - Ultimate Audio Visualizer (Remixed Edition)</title>
 <style>
-:root{--panel-bg:rgba(8,12,22,.92);--panel-border:rgba(72,160,255,.25);--accent:#00d2ff;--ok:#00ffaa}
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;width:100%;height:100%;background:#02060f;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-system,sans-serif}
-#intro-screen{position:fixed;inset:0;z-index:99999;background:#02060f;display:flex;align-items:center;justify-content:center;overflow:hidden}
-#intro-screen.fade-out{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .9s,visibility .9s}
-#intro-canvas{position:absolute;inset:0;width:100%;height:100%}
-.intro-content{position:relative;z-index:2;text-align:center;display:flex;flex-direction:column;align-items:center;transition:opacity .5s,transform .9s cubic-bezier(.5,0,.2,1)}
-.intro-content.leaving{opacity:0;transform:scale(1.25)}
-.intro-logo{width:84px;height:84px;opacity:0;animation:logoIn 1.3s .15s cubic-bezier(.16,1,.3,1) forwards}
-@keyframes logoIn{from{opacity:0;transform:scale(.2) rotate(-120deg);filter:blur(10px)}to{opacity:1;transform:none;filter:drop-shadow(0 0 22px rgba(0,255,170,.8))}}
-.intro-title{display:flex;color:#e0f2fe;font-size:44px;font-weight:800;letter-spacing:.14em;margin:18px 0 4px;text-shadow:0 0 18px rgba(0,210,255,.5);white-space:pre}
-.intro-title span{display:inline-block;opacity:0;animation:letterIn 1s cubic-bezier(.16,1,.3,1) forwards}
-@keyframes letterIn{from{opacity:0;transform:translateY(34px) scale(1.7);filter:blur(14px)}to{opacity:1;transform:none;filter:blur(0)}}
-.intro-subtitle{color:var(--ok);font-size:11px;letter-spacing:.35em;margin:0 0 22px;opacity:0;animation:fadeUp 1s 1.5s ease forwards}
-@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:.85;transform:none}}
-.boot-bar{width:240px;height:2px;background:rgba(0,210,255,.15);border-radius:2px;overflow:hidden}
-.boot-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#00ffaa,#00d2ff);box-shadow:0 0 10px #00d2ff}
-.boot-line{font:600 10px ui-monospace,Consolas,monospace;letter-spacing:.2em;color:rgba(0,255,170,.85);min-height:14px;margin:10px 0 18px}
-#intro-start-btn{background:transparent;border:1px solid var(--accent);color:var(--accent);padding:12px 30px;font-size:13px;font-weight:700;letter-spacing:.2em;border-radius:30px;cursor:pointer;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .6s,transform .6s,background .3s,box-shadow .3s,color .3s}
-#intro-start-btn.ready{opacity:1;transform:none;pointer-events:auto;animation:btnPulse 2s infinite alternate}
-@keyframes btnPulse{from{box-shadow:0 0 8px rgba(0,210,255,.2)}to{box-shadow:0 0 28px rgba(0,210,255,.6)}}
-#intro-start-btn:hover{background:var(--accent);color:#02060f;box-shadow:0 0 30px rgba(0,210,255,.8)}
-#intro-skip-btn{background:none;border:0;color:rgba(180,220,255,.45);font-size:11px;letter-spacing:.12em;margin-top:14px;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .6s,color .2s}
-#intro-skip-btn.ready{opacity:1;pointer-events:auto}
-#intro-skip-btn:hover{color:#e0f2fe}
-#intro-flash{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0;background:radial-gradient(circle,#fff 0%,#00e1ff 35%,transparent 70%)}
-#intro-flash.go{animation:flash .9s ease-out}
-@keyframes flash{0%{opacity:0}15%{opacity:.85}100%{opacity:0}}
-#panel.intro-hold{opacity:0;visibility:hidden;transform:translateX(-50%) translateY(-28px);pointer-events:none}
-#brand-logo-container.intro-hold,#toggle-panel.intro-hold,#status.intro-hold{opacity:0!important;pointer-events:none}
-#toggle-panel{transition:opacity 1.2s ease,background .2s}
-#brand-logo-container{position:fixed;top:20px;left:20px;z-index:100;display:flex;align-items:center;gap:12px;padding:8px 14px;background:rgba(8,12,22,.75);border:1px solid rgba(0,210,255,.2);border-radius:12px;backdrop-filter:blur(8px);transition:opacity 1.5s,visibility 1.5s,transform .3s}
-#brand-logo-container:hover{opacity:1!important;visibility:visible!important;transform:translateY(-2px)}
-#brand-logo-container.faded{opacity:0;visibility:hidden}
-.brand-logo-svg{width:32px;height:32px;filter:drop-shadow(0 0 6px rgba(0,255,170,.6))}
-.brand-text-wrap{display:flex;flex-direction:column}
-.brand-title{color:#e0f2fe;font-size:14px;font-weight:700;letter-spacing:.05em;line-height:1.1}
-.brand-subtitle{color:var(--ok);font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.8}
-#video-stage{position:fixed;inset:0;overflow:hidden;background:#02060f;z-index:1}
-#video-stage iframe{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;border:0}
-#placeholder-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;color:rgba(180,220,255,.6);font-size:15px;text-align:center;max-width:420px;line-height:1.6}
-#vignette{position:fixed;inset:0;z-index:2;pointer-events:none;background:radial-gradient(circle at center,rgba(2,6,15,0) 40%,rgba(2,6,15,.7) 100%),linear-gradient(to top,rgba(2,6,15,.9) 0%,rgba(2,6,15,.3) 30%,rgba(2,6,15,0) 60%)}
-#viz-wrap{position:fixed;inset:0;z-index:4;width:100vw;height:100vh;pointer-events:none;will-change:transform}
-#viz-canvas{width:100%;height:100%;display:block}
-#panel{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10;background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:12px;padding:14px 20px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;max-width:95vw;max-height:calc(100vh - 40px);overflow-y:auto;overflow-x:hidden;transition:opacity .9s ease,transform .9s cubic-bezier(.16,1,.3,1),visibility .2s;box-shadow:0 8px 32px rgba(0,180,255,.08)}
-#panel::-webkit-scrollbar{width:6px}
-#panel::-webkit-scrollbar-thumb{background:rgba(0,210,255,.35);border-radius:4px}
-#panel input[type=text]{background:rgba(0,150,255,.08);border:1px solid rgba(0,210,255,.25);color:#e0f2fe;padding:10px 14px;border-radius:8px;font-size:13px;width:180px;outline:none}
-#panel input[type=text]:focus{border-color:var(--accent);background:rgba(0,150,255,.16)}
-#panel input[type=text]::placeholder{color:rgba(180,220,255,.4)}
-#panel button,#panel select{background:#080d18;border:1px solid rgba(0,210,255,.35);color:var(--accent);padding:10px 12px;border-radius:8px;font-size:13px;cursor:pointer;transition:all .2s;white-space:nowrap;font-weight:600}
-#panel select option{background:#080d18;color:#e0f2fe}
-#panel select option:disabled{color:var(--ok);font-weight:700}
-#panel button:hover{background:rgba(0,210,255,.22);border-color:rgba(0,210,255,.6)}
-#fav-btn.active{color:#ffd700;border-color:#ffd700;background:rgba(255,215,0,.15)}
-#folder-btn.linked{color:var(--ok);border-color:var(--ok)}
-#folder-btn.warn{color:#ffb347;border-color:#ffb347}
-.fav-pagination-group{display:flex;align-items:center;gap:4px;background:#080d18;border:1px solid rgba(0,210,255,.35);border-radius:8px;padding:2px 6px}
-.fav-pagination-group select{border:none!important;background:transparent!important;padding:8px 4px!important}
-.fav-page-btn{padding:6px 8px!important;font-size:11px!important;border-radius:6px!important}
-.fav-page-num{color:var(--ok);font-size:11px;font-weight:700;min-width:34px;text-align:center}
-.scrubber-group{display:flex;align-items:center;gap:10px;width:100%;margin-top:6px;padding:4px 8px;background:rgba(0,210,255,.05);border:1px solid rgba(0,210,255,.15);border-radius:8px}
-.scrubber-time{font-size:11px;color:var(--ok);font-weight:600;min-width:45px;text-align:center;font-family:monospace}
-#time-slider{flex:1;-webkit-appearance:none;appearance:none;height:6px;background:rgba(0,210,255,.2);border-radius:3px;outline:none;cursor:pointer}
-#time-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);cursor:pointer}
-#time-slider::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;background:var(--accent);cursor:pointer}
-#preview-card{position:fixed;top:180px;left:50%;transform:translateX(-50%);z-index:12;background:rgba(6,12,24,.95);border:1px solid var(--accent);border-radius:10px;padding:10px;width:280px;display:none;box-shadow:0 10px 30px rgba(0,0,0,.8);text-align:center;pointer-events:none}
-#preview-card img{width:100%;height:140px;object-fit:cover;border-radius:6px}
-#preview-card .title{color:#e0f2fe;font-size:12px;margin-top:8px;font-weight:600;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-#status{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:10;font-size:12px;color:var(--accent);text-align:center;max-width:520px;background:rgba(4,14,30,.85);border:1px solid rgba(0,210,255,.25);padding:6px 14px;border-radius:20px;transition:opacity 1.2s,visibility 1.2s}
-#status.faded{opacity:0;visibility:hidden}
-#status:hover{opacity:1!important;visibility:visible!important}
-#toggle-panel{position:fixed;top:20px;right:20px;z-index:11;background:var(--panel-bg);border:1px solid var(--panel-border);color:#e0f2fe;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
-#toggle-panel:hover{background:rgba(0,210,255,.2)}
-#panel.hidden{opacity:0;visibility:hidden;transform:translateX(-50%) translateY(-10px)}
-#status.hidden{display:none}
-#snare-flash{position:fixed;inset:0;z-index:5;pointer-events:none;background:#00e1ff;opacity:0;mix-blend-mode:screen;will-change:opacity}
+  :root {
+    --panel-bg: rgba(8, 12, 22, 0.92);
+    --panel-border: rgba(72, 160, 255, 0.25);
+    --accent: #00d2ff;
+    --ok: #00ffaa;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: #02060f;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  /* --- CINEMATIC INTRO SCREEN & BOOT SYSTEM --- */
+  #intro-screen {
+    position: fixed; inset: 0; z-index: 99999;
+    background: #02060f;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  #intro-screen.fade-out {
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.9s ease, visibility 0.9s ease;
+  }
+  #intro-canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+  }
+  .intro-content {
+    position: relative; z-index: 2;
+    text-align: center;
+    display: flex; flex-direction: column; align-items: center;
+    transition: opacity 0.5s ease, transform 0.9s cubic-bezier(0.5, 0, 0.2, 1);
+  }
+  .intro-content.leaving {
+    opacity: 0; transform: scale(1.25);
+  }
+  .intro-logo {
+    width: 84px; height: 84px;
+    opacity: 0;
+    animation: logoIn 1.3s 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes logoIn {
+    from { opacity: 0; transform: scale(0.2) rotate(-120deg); filter: blur(10px); }
+    to { opacity: 1; transform: none; filter: drop-shadow(0 0 22px rgba(0, 255, 170, 0.8)); }
+  }
+  .intro-title {
+    display: flex;
+    color: #e0f2fe; font-size: 44px; font-weight: 800;
+    letter-spacing: 0.14em; margin: 18px 0 4px;
+    text-shadow: 0 0 18px rgba(0, 210, 255, 0.5);
+    white-space: pre;
+  }
+  .intro-title span {
+    display: inline-block; opacity: 0;
+    animation: letterIn 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes letterIn {
+    from { opacity: 0; transform: translateY(34px) scale(1.7); filter: blur(14px); }
+    to { opacity: 1; transform: none; filter: blur(0); }
+  }
+  .intro-subtitle {
+    color: var(--ok); font-size: 11px; letter-spacing: 0.35em;
+    margin: 0 0 22px; opacity: 0;
+    animation: fadeUp 1s 1.5s ease forwards;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 0.85; transform: none; }
+  }
+  .boot-bar {
+    width: 240px; height: 2px;
+    background: rgba(0, 210, 255, 0.15);
+    border-radius: 2px; overflow: hidden;
+  }
+  .boot-bar i {
+    display: block; height: 100%; width: 0;
+    background: linear-gradient(90deg, #00ffaa, #00d2ff);
+    box-shadow: 0 0 10px #00d2ff;
+  }
+  .boot-line {
+    font: 600 10px ui-monospace, Consolas, monospace;
+    letter-spacing: 0.2em; color: rgba(0, 255, 170, 0.85);
+    min-height: 14px; margin: 10px 0 18px;
+  }
+  #intro-start-btn {
+    background: transparent; border: 1px solid var(--accent); color: var(--accent);
+    padding: 12px 30px; font-size: 13px; font-weight: 700; letter-spacing: 0.2em;
+    border-radius: 30px; cursor: pointer; opacity: 0; transform: translateY(8px);
+    pointer-events: none; transition: opacity 0.6s, transform 0.6s, background 0.3s, box-shadow 0.3s, color 0.3s;
+  }
+  #intro-start-btn.ready {
+    opacity: 1; transform: none; pointer-events: auto;
+    animation: btnPulse 2s infinite alternate;
+  }
+  @keyframes btnPulse {
+    from { box-shadow: 0 0 8px rgba(0, 210, 255, 0.2); }
+    to { box-shadow: 0 0 28px rgba(0, 210, 255, 0.6); }
+  }
+  #intro-start-btn:hover {
+    background: var(--accent); color: #02060f;
+    box-shadow: 0 0 30px rgba(0, 210, 255, 0.8);
+  }
+  #intro-skip-btn {
+    background: none; border: 0; color: rgba(180, 220, 255, 0.45);
+    font-size: 11px; letter-spacing: 0.12em; margin-top: 14px;
+    cursor: pointer; opacity: 0; pointer-events: none;
+    transition: opacity 0.6s, color 0.2s;
+  }
+  #intro-skip-btn.ready { opacity: 1; pointer-events: auto; }
+  #intro-skip-btn:hover { color: #e0f2fe; }
+  #intro-flash {
+    position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0;
+    background: radial-gradient(circle, #fff 0%, #00e1ff 35%, transparent 70%);
+  }
+  #intro-flash.go { animation: flashAnim 0.9s ease-out; }
+  @keyframes flashAnim {
+    0% { opacity: 0; } 15% { opacity: 0.85; } 100% { opacity: 0; }
+  }
+
+  /* --- BRAND LOGO & CONTROLS --- */
+  #panel.intro-hold { opacity: 0; visibility: hidden; transform: translateX(-50%) translateY(-28px); pointer-events: none; }
+  #brand-logo-container.intro-hold, #toggle-panel.intro-hold, #status.intro-hold { opacity: 0 !important; pointer-events: none; }
+  
+  #brand-logo-container {
+    position: fixed; top: 20px; left: 20px; z-index: 100;
+    display: flex; align-items: center; gap: 12px; padding: 8px 14px;
+    background: rgba(8, 12, 22, 0.75); border: 1px solid rgba(0, 210, 255, 0.2);
+    border-radius: 12px; backdrop-filter: blur(8px);
+    transition: opacity 1.5s, visibility 1.5s, transform 0.3s;
+  }
+  #brand-logo-container:hover { opacity: 1 !important; visibility: visible !important; transform: translateY(-2px); }
+  #brand-logo-container.faded { opacity: 0; visibility: hidden; }
+  .brand-logo-svg { width: 32px; height: 32px; filter: drop-shadow(0 0 6px rgba(0, 255, 170, 0.6)); }
+  .brand-text-wrap { display: flex; flex-direction: column; }
+  .brand-title { color: #e0f2fe; font-size: 14px; font-weight: 700; letter-spacing: 0.05em; line-height: 1.1; }
+  .brand-subtitle { color: var(--ok); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.8; }
+
+  #video-stage { position: fixed; inset: 0; overflow: hidden; background: #02060f; z-index: 1; }
+  #video-stage iframe { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; border: 0; }
+  #placeholder-msg {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 2; color: rgba(180, 220, 255, 0.6); font-size: 15px; text-align: center; max-width: 420px; line-height: 1.6;
+  }
+  #vignette {
+    position: fixed; inset: 0; z-index: 2; pointer-events: none;
+    background: radial-gradient(circle at center, rgba(2,6,15,0) 40%, rgba(2,6,15,0.7) 100%),
+                linear-gradient(to top, rgba(2,6,15,0.9) 0%, rgba(2,6,15,0.3) 30%, rgba(2,6,15,0) 60%);
+  }
+
+  #viz-wrap { position: fixed; inset: 0; z-index: 4; width: 100vw; height: 100vh; pointer-events: none; will-change: transform; }
+  #viz-canvas { width: 100%; height: 100%; display: block; }
+
+  /* --- SCROLLABLE CONTROL PANEL --- */
+  #panel {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 10; background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 12px; padding: 14px 20px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    max-width: 95vw; max-height: calc(100vh - 40px);
+    overflow-y: auto; overflow-x: hidden;
+    transition: opacity 0.9s ease, transform 0.9s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s;
+    box-shadow: 0 8px 32px rgba(0, 180, 255, 0.08);
+  }
+  #panel::-webkit-scrollbar { width: 6px; }
+  #panel::-webkit-scrollbar-thumb { background: rgba(0, 210, 255, 0.35); border-radius: 4px; }
+  
+  #panel input[type=text] {
+    background: rgba(0, 150, 255, 0.08); border: 1px solid rgba(0, 210, 255, 0.25);
+    color: #e0f2fe; padding: 10px 14px; border-radius: 8px; font-size: 13px; width: 180px; outline: none;
+  }
+  #panel input[type=text]:focus { border-color: var(--accent); background: rgba(0, 150, 255, 0.16); }
+  #panel input[type=text]::placeholder { color: rgba(180, 220, 255, 0.4); }
+  
+  #panel button, #panel select {
+    background: #080d18; border: 1px solid rgba(0, 210, 255, 0.35);
+    color: var(--accent); padding: 10px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
+    transition: all 0.2s; white-space: nowrap; font-weight: 600;
+  }
+  #panel select option { background: #080d18; color: #e0f2fe; }
+  #panel select option:disabled { color: var(--ok); font-weight: 700; }
+  #panel button:hover { background: rgba(0, 210, 255, 0.22); border-color: rgba(0, 210, 255, 0.6); }
+  
+  #fav-btn.active { color: #ffd700; border-color: #ffd700; background: rgba(255, 215, 0, 0.15); }
+  #folder-btn.linked { color: var(--ok); border-color: var(--ok); }
+  #folder-btn.warn { color: #ffb347; border-color: #ffb347; }
+
+  .fav-pagination-group {
+    display: flex; align-items: center; gap: 4px;
+    background: #080d18; border: 1px solid rgba(0, 210, 255, 0.35);
+    border-radius: 8px; padding: 2px 6px;
+  }
+  .fav-pagination-group select { border: none !important; background: transparent !important; padding: 8px 4px !important; }
+  .fav-page-btn { padding: 6px 8px !important; font-size: 11px !important; border-radius: 6px !important; }
+  .fav-page-num { color: var(--ok); font-size: 11px; font-weight: 700; min-width: 34px; text-align: center; }
+
+  .scrubber-group {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    margin-top: 6px; padding: 4px 8px; background: rgba(0, 210, 255, 0.05);
+    border: 1px solid rgba(0, 210, 255, 0.15); border-radius: 8px;
+  }
+  .scrubber-time { font-size: 11px; color: var(--ok); font-weight: 600; min-width: 45px; text-align: center; font-family: monospace; }
+  #time-slider {
+    flex: 1; -webkit-appearance: none; appearance: none; height: 6px;
+    background: rgba(0, 210, 255, 0.2); border-radius: 3px; outline: none; cursor: pointer;
+  }
+  #time-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); cursor: pointer;
+  }
+
+  #preview-card {
+    position: fixed; top: 180px; left: 50%; transform: translateX(-50%);
+    z-index: 12; background: rgba(6, 12, 24, 0.95); border: 1px solid var(--accent);
+    border-radius: 10px; padding: 10px; width: 280px; display: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center; pointer-events: none;
+  }
+  #preview-card img { width: 100%; height: 140px; object-fit: cover; border-radius: 6px; }
+  #preview-card .title { color: #e0f2fe; font-size: 12px; margin-top: 8px; font-weight: 600; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+  #status {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+    z-index: 10; font-size: 12px; color: var(--accent); text-align: center; max-width: 520px;
+    background: rgba(4, 14, 30, 0.85); border: 1px solid rgba(0, 210, 255, 0.25);
+    padding: 6px 14px; border-radius: 20px; transition: opacity 1.2s, visibility 1.2s;
+  }
+  #status.faded { opacity: 0; visibility: hidden; }
+  #status:hover { opacity: 1 !important; visibility: visible !important; }
+
+  #toggle-panel {
+    position: fixed; top: 20px; right: 20px; z-index: 11;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    color: #e0f2fe; width: 40px; height: 40px; border-radius: 50%;
+    cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center;
+  }
+  #toggle-panel:hover { background: rgba(0, 210, 255, 0.2); }
+  #panel.hidden { opacity: 0; visibility: hidden; transform: translateX(-50%) translateY(-10px); }
+  #status.hidden { display: none; }
+  #snare-flash { position: fixed; inset: 0; z-index: 5; pointer-events: none; background: #00e1ff; opacity: 0; mix-blend-mode: screen; will-change: opacity; }
 </style>
 </head>
 <body>
@@ -91,14 +255,20 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#02060f;overflow:
   <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#aa00ff"/><stop offset="100%" stop-color="#00ffaa"/></linearGradient>
 </defs></svg>
 
+<!-- CINEMATIC BOOT SCREEN -->
 <div id="intro-screen">
   <canvas id="intro-canvas"></canvas>
   <div class="intro-content" id="intro-content">
-    <div class="intro-logo"><svg viewBox="0 0 64 64" fill="none"><path d="M12 52 L52 12 L36 52 L26 38 L12 52 Z" fill="url(#g1)"/><path d="M52 12 L12 52 L52 36 L38 26 L52 12 Z" fill="url(#g2)" opacity=".85"/></svg></div>
+    <div class="intro-logo">
+      <svg viewBox="0 0 64 64" fill="none">
+        <path d="M12 52 L52 12 L36 52 L26 38 L12 52 Z" fill="url(#g1)"/>
+        <path d="M52 12 L12 52 L52 36 L38 26 L52 12 Z" fill="url(#g2)" opacity=".85"/>
+      </svg>
+    </div>
     <h1 class="intro-title" id="intro-title" aria-label="DART VIZ"></h1>
     <p class="intro-subtitle">HYPER-REACTIVE AUDIO SYSTEM</p>
     <div class="boot-bar"><i id="boot-fill"></i></div>
-    <div class="boot-line" id="boot-line">BOOTING…</div>
+    <div class="boot-line" id="boot-line">BOOTING SPECTRUM ENGINE...</div>
     <button id="intro-start-btn">INITIALIZE · ENABLE AUDIO</button>
     <button id="intro-skip-btn">start without audio</button>
   </div>
@@ -106,7 +276,12 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#02060f;overflow:
 </div>
 
 <div id="brand-logo-container">
-  <svg class="brand-logo-svg" viewBox="0 0 64 64" fill="none"><path d="M12 52 L52 12 L36 52 L26 38 L12 52 Z" fill="url(#g1)"/><path d="M52 12 L12 52 L52 36 L38 26 L52 12 Z" fill="url(#g2)" opacity=".85"/><polygon points="52,12 38,26 26,38" fill="#fff" opacity=".6"/><circle cx="52" cy="12" r="3" fill="#00ffaa"/></svg>
+  <svg class="brand-logo-svg" viewBox="0 0 64 64" fill="none">
+    <path d="M12 52 L52 12 L36 52 L26 38 L12 52 Z" fill="url(#g1)"/>
+    <path d="M52 12 L12 52 L52 36 L38 26 L52 12 Z" fill="url(#g2)" opacity=".85"/>
+    <polygon points="52,12 38,26 26,38" fill="#fff" opacity=".6"/>
+    <circle cx="52" cy="12" r="3" fill="#00ffaa"/>
+  </svg>
   <div class="brand-text-wrap"><span class="brand-title">DART VIZ</span><span class="brand-subtitle">Audio-Visualizer</span></div>
 </div>
 
@@ -151,7 +326,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#02060f;overflow:
     <option value="bars" selected>📊 Bars Style</option><option value="wave">⚡ Rapid Wave Style</option>
     <option value="sea_wave">🌊 Sea Waves Style</option><option value="radial">💫 Radial Ring Style</option>
   </select>
-  <button id="capture-btn" title="Requires screen share for tab audio">Enable Real Audio-Reactive</button>
+  <button id="capture-btn" title="Open full source picker for Screen, Window, or Tab audio">Enable Real Audio-Reactive</button>
   <button id="sim-btn">Use Ambient Mode</button>
   <select id="theme-select" aria-label="Visual theme"></select>
 
@@ -162,7 +337,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#02060f;overflow:
   </div>
 </div>
 
-<div id="status">Ambient mode running. Real mode requires sharing this tab's audio.</div>
+<div id="status">Ambient mode running. Real mode requires sharing audio.</div>
 
 <script>
 (function(){
@@ -171,9 +346,7 @@ const $ = id => document.getElementById(id);
 const ID_RE = /^[\w-]{11}$/;
 
 /* ================================================================
-   STORAGE — 3 layers so a GitHub reset / cache wipe can't lose data
-   1) localStorage   2) IndexedDB mirror   3) real folder on disk
-   Everything is merged (union) on load, never blindly overwritten.
+   ROBUST 3-LAYER STORAGE SYSTEM (LocalStorage + IndexedDB + Folder)
    ================================================================ */
 const Store = (() => {
   const LS_FAV='yt_viz_favorites', LS_HIST='yt_viz_history', LS_BAK='yt_viz_backup_copy';
@@ -183,7 +356,6 @@ const Store = (() => {
   let dirHandle = null, dirOK = false, onChange = () => {}, timer = null;
   const folderSupported = typeof window.showDirectoryPicker === 'function';
 
-  // ---- IndexedDB ----
   let dbp = null;
   const idb = () => dbp || (dbp = new Promise((res, rej) => {
     const r = indexedDB.open('dart_viz_db', 1);
@@ -193,7 +365,6 @@ const Store = (() => {
   const idbGet = async k => { try { const db = await idb(); return await new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); }); } catch { return undefined; } };
   const idbSet = async (k, v) => { try { const db = await idb(); await new Promise((res, rej) => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); } catch {} };
 
-  // ---- helpers ----
   const clean = list => {
     const seen = new Set(), out = [];
     (Array.isArray(list) ? list : []).forEach(it => {
@@ -217,7 +388,6 @@ const Store = (() => {
     return data.favorites.length - before;
   }
 
-  // ---- folder layer ----
   async function perm(h, ask) {
     const o = { mode: 'readwrite' };
     try {
@@ -244,7 +414,7 @@ const Store = (() => {
       await writeFile(dirHandle, LIST_FILE, readableList());
       const day = new Date().toISOString().slice(0, 10);
       const bak = await dirHandle.getDirectoryHandle('backups', { create: true });
-      await writeFile(bak, `dart_viz_${day}.json`, text);   // one rolling copy per day
+      await writeFile(bak, `dart_viz_${day}.json`, text);
       return true;
     } catch { dirOK = false; onChange(); return false; }
   }
@@ -264,10 +434,10 @@ const Store = (() => {
       if (!(await perm(h, true))) return { ok: false, msg: 'Folder permission denied.' };
       dirHandle = h; dirOK = true;
       await idbSet('dirHandle', h);
-      const added = absorb(await readFolder());      // restore anything already in that folder
+      const added = absorb(await readFolder());
       await persistAll(); onChange();
       return { ok: true, msg: `Backup folder linked: ${h.name}` + (added ? ` (restored ${added} favorites)` : '') };
-    } catch (e) { return { ok: false, msg: e && e.name === 'AbortError' ? 'Folder pick cancelled.' : 'Folder pick failed. Create a subfolder on Desktop first (Chrome blocks Desktop itself).' }; }
+    } catch (e) { return { ok: false, msg: e && e.name === 'AbortError' ? 'Folder pick cancelled.' : 'Folder pick failed. Create a subfolder on Desktop first.' }; }
   }
   async function reconnect(ask) {
     if (!dirHandle) return false;
@@ -300,7 +470,7 @@ const Store = (() => {
   };
 })();
 
-/* ---------------- helpers ---------------- */
+/* ---------------- HELPER UTILITIES ---------------- */
 function extractVideoId(input) {
   if (!input) return null;
   const s = String(input).trim();
@@ -321,7 +491,7 @@ function extractVideoId(input) {
 }
 const formatTime = t => { if (!t || isNaN(t)) return '00:00'; const m = Math.floor(t / 60), s = Math.floor(t % 60); return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`; };
 
-/* ---------------- DOM refs ---------------- */
+/* ---------------- DOM ELEMENTS & UI BINDINGS ---------------- */
 const canvas = $('viz-canvas'), ctx = canvas.getContext('2d', { alpha: true });
 const vizWrap = $('viz-wrap'), snareFlashEl = $('snare-flash');
 const inputEl = $('yt-input'), historySelectEl = $('history-select'), favSelectEl = $('fav-select');
@@ -342,7 +512,6 @@ function setStatus(msg, ms = 2500) {
   clearTimeout(statusTimer); statusTimer = setTimeout(() => statusEl.classList.add('faded'), ms);
 }
 
-/* ---------------- dropdowns / favorites ---------------- */
 const shorten = (t, n) => t.length > n ? t.slice(0, n) + '…' : t;
 
 function renderHistory() {
@@ -383,7 +552,6 @@ favBtn.addEventListener('click', () => {
   Store.save(); renderFavorites();
 });
 
-/* ---- folder / file backup buttons ---- */
 folderBtn.addEventListener('click', async () => {
   if (Store.hasHandle && !Store.linked) { const ok = await Store.reconnect(true); return setStatus(ok ? 'Folder reconnected & synced ✔' : 'Permission not granted — click again to retry.'); }
   if (Store.linked && !confirm(`Backing up to "${Store.folderName}".\n\nOK = choose a different folder\nCancel = just back up now`)) { Store.flushNow(); return setStatus('Backed up now ✔'); }
@@ -418,7 +586,7 @@ $('file-input').addEventListener('change', e => {
   const r = new FileReader(); r.onload = ev => importText(String(ev.target.result), 'Restored'); r.readAsText(f); e.target.value = '';
 });
 
-/* ---------------- preview / history ---------------- */
+/* ---------------- PREVIEW & HISTORY ---------------- */
 async function fetchTitle(id) {
   const token = ++previewToken;
   clearTimeout(previewHideTimer);
@@ -440,7 +608,6 @@ async function addToHistory(id) {
   if (currentVideoId === id) currentVideoTitle = title;
   previewHideTimer = setTimeout(hidePreview, 3000);
   Store.setHistory([{ id, title }, ...Store.data.history.filter(h => h.id !== id)]);
-  // refresh title in favorites if it was generic
   const fav = Store.data.favorites.find(f => f.id === id);
   if (fav && fav.title === 'YouTube Video' && title !== 'YouTube Video') fav.title = title;
   Store.save(); renderHistory(); renderFavorites();
@@ -456,7 +623,7 @@ speedSelectEl.addEventListener('change', e => {
 });
 vizStyleSelectEl.addEventListener('change', e => { vizStyle = e.target.value; });
 
-/* ---------------- player ---------------- */
+/* ---------------- YOUTUBE PLAYER INTEGRATION ---------------- */
 function resizeVideoCover() {
   const f = document.querySelector('#video-stage iframe'); if (!f) return;
   const aspect = 16 / 9, ww = innerWidth, wh = innerHeight; let w, h;
@@ -503,7 +670,7 @@ async function startPlayer(id) {
     playerVars: { autoplay: 1, controls: 0, modestbranding: 1, rel: 0, playsinline: 1 },
     events: {
       onReady: e => { e.target.playVideo(); e.target.setPlaybackRate(currentSpeed); resizeVideoCover(); },
-      onStateChange: e => { if (e.data === 0) { e.target.seekTo(0, true); e.target.playVideo(); } },   // loop
+      onStateChange: e => { if (e.data === 0) { e.target.seekTo(0, true); e.target.playVideo(); } },
       onError: () => { setStatus('Embed error — using fallback player.'); setIframeVideo(id); }
     }
   });
@@ -526,7 +693,6 @@ $('skip-ad-btn').addEventListener('click', () => {
 inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') loadVideoFromInput(); });
 inputEl.addEventListener('input', () => { const id = extractVideoId(inputEl.value); if (id) fetchTitle(id); else hidePreview(); });
 
-/* scrubber */
 function updateScrubber() {
   if (!player || typeof player.getCurrentTime !== 'function' || isUserScrubbing) return;
   try {
@@ -537,7 +703,7 @@ function updateScrubber() {
 timeSlider.addEventListener('input', () => { isUserScrubbing = true; currTimeDisplay.textContent = formatTime(timeSlider.value); });
 timeSlider.addEventListener('change', () => { if (player && player.seekTo) player.seekTo(parseFloat(timeSlider.value), true); isUserScrubbing = false; });
 
-/* ---------------- themes ---------------- */
+/* ---------------- THEMES ---------------- */
 const THEMES = [
   { name: 'Deep Blue', hueBase: 195, hueRange: 30, sat: 90 },
   { name: 'Neon Green', hueBase: 140, hueRange: 35, sat: 100 },
@@ -553,7 +719,6 @@ const THEMES = [
 ];
 let currentTheme = THEMES[0];
 THEMES.forEach((t, i) => { const o = document.createElement('option'); o.value = i; o.textContent = t.name; themeSelectEl.appendChild(o); });
-// remember user's visual choices too
 try {
   const prefs = JSON.parse(localStorage.getItem('yt_viz_prefs') || '{}');
   if (THEMES[prefs.theme]) { currentTheme = THEMES[prefs.theme]; themeSelectEl.value = prefs.theme; }
@@ -563,7 +728,7 @@ const savePrefs = () => { try { localStorage.setItem('yt_viz_prefs', JSON.string
 themeSelectEl.addEventListener('change', e => { currentTheme = THEMES[parseInt(e.target.value, 10)] || THEMES[0]; savePrefs(); });
 vizStyleSelectEl.addEventListener('change', savePrefs);
 
-/* ---------------- canvas ---------------- */
+/* ---------------- CANVAS VISUALIZER ENGINE ---------------- */
 let W, H;
 function resizeCanvas() {
   const r = canvas.parentElement.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
@@ -711,7 +876,7 @@ function drawRadial(values, pulse, theme) {
 
 const applyCameraPulse = k => { vizWrap.style.transform = `scale(${1 + Math.min(.03, k * .03)})`; };
 const applySnareFlash = s => { snareFlashEl.style.opacity = String(Math.min(.25, s * .25)); };
-let vizGain = 1;                       // 0→1 ramp used by the opening sequence
+let vizGain = 1;
 const gainBuf = new Float32Array(HALF_BARS);
 function render(values, kick) {
   if (vizGain < .999) {
@@ -768,14 +933,17 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-/* real audio-reactive: needs a click (browser rule), so the intro button triggers it */
+/* ================================================================
+   AUDIO REACTIVE CAPTURE (Remixed with Full Picker & Sharing Tag)
+   ================================================================ */
 async function enableRealAudio() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { setStatus('Tab-audio capture is not supported here — ambient mode.', 5000); return false; }
   try {
-    setStatus('Pick "This Tab" and make sure "Share tab audio" is ENABLED.', 6000);
-    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true, preferCurrentTab: true, selfBrowserSurface: 'include', systemAudio: 'exclude' });
+    setStatus('Select Screen, Window, or Tab + ensure audio sharing is enabled.', 6000);
+    // REMIX: Standard getDisplayMedia call restores full browser picker and status tag!
+    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
     const tracks = stream.getAudioTracks();
-    if (!tracks.length) { setStatus('No audio was shared — tick "Share tab audio". Staying in ambient mode.', 6000); stream.getTracks().forEach(t => t.stop()); return false; }
+    if (!tracks.length) { setStatus('No audio track shared! Staying in ambient mode.', 6000); stream.getTracks().forEach(t => t.stop()); return false; }
     stream.getVideoTracks().forEach(t => t.stop());
     if (audioCtx) { try { audioCtx.close(); } catch {} }
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -795,11 +963,10 @@ const togglePanel = () => { panelEl.classList.toggle('hidden'); statusEl.classLi
 $('toggle-panel').addEventListener('click', togglePanel);
 addEventListener('keydown', e => { if ((e.key === 'h' || e.key === 'H') && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) togglePanel(); });
 
-/* flush storage whenever the tab is hidden/closed */
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') Store.flushNow(); });
 addEventListener('pagehide', () => Store.flushNow());
 
-/* ---------------- cinematic intro ---------------- */
+/* ---------------- CINEMATIC INTRO ANIMATION ---------------- */
 const Intro = (() => {
   const el = $('intro-screen'), cv = $('intro-canvas'), c = cv.getContext('2d'), content = $('intro-content'), flash = $('intro-flash');
   const startBtn = $('intro-start-btn'), skipBtn = $('intro-skip-btn'), bootFill = $('boot-fill'), bootLine = $('boot-line'), titleEl = $('intro-title');
@@ -819,10 +986,8 @@ const Intro = (() => {
     const t = (now - t0) / 1000, L = state === 'launch' ? (now - launchAt) / 1000 : 0;
     const cx = w / 2, cy = h / 2, R = Math.max(140, Math.min(w, h) * .3), conv = ease(clamp(t / (reduce ? .5 : 2.4)));
     c.globalCompositeOperation = 'source-over'; c.fillStyle = 'rgba(2,6,15,.26)'; c.fillRect(0, 0, w, h);
-        // scan line + pulsing guide rings
     const sy = (t * 140) % (h + 40) - 20; c.fillStyle = 'rgba(0,210,255,.05)'; c.fillRect(0, sy, w, 2);
     for (let k = 0; k < 3; k++) { const rr = R * (.55 + k * .22) + Math.sin(t * 1.2 + k) * 4 + L * L * w; c.strokeStyle = `rgba(0,210,255,${.07 * conv * (1 - clamp(L))})`; c.lineWidth = 1; c.beginPath(); c.arc(cx, cy, rr, 0, 6.2832); c.stroke(); }
-    // procedural equalizer ring
     const grow = (state === 'launch') ? 1 + L * 3 : 1, fade = 1 - clamp(L * 1.1);
     c.lineWidth = 3; c.lineCap = 'round';
     for (let i = 0; i < B; i++) {
@@ -831,18 +996,17 @@ const Intro = (() => {
       c.strokeStyle = `hsla(${hue},95%,${58 + n * 25}%,${(.3 + .55 * conv) * fade})`;
       c.beginPath(); c.moveTo(cx + Math.cos(ang) * r0, cy + Math.sin(ang) * r0); c.lineTo(cx + Math.cos(ang) * (r0 + len), cy + Math.sin(ang) * (r0 + len)); c.stroke();
     }
-    // particles spiral in and lock onto the ring
     for (const p of P) {
       const ang = p.a + t * p.s * .5 * (1 + L * 4);
       let dist = R * (1 + p.d * 2.4 * (1 - conv)) + (p.o - .5) * 16 * conv + L * L * w * .9 * p.s;
       const al = (.15 + conv * .75) * (1 - clamp(L * .9));
       c.fillStyle = `hsla(${p.hue},95%,72%,${al})`; c.beginPath(); c.arc(cx + Math.cos(ang) * dist, cy + Math.sin(ang) * dist, 1 + p.o * 1.8, 0, 6.2832); c.fill();
     }
-    if (state === 'launch') { // shockwave
+    if (state === 'launch') {
       c.strokeStyle = `rgba(160,255,255,${Math.max(0, 1 - L * 1.1)})`; c.lineWidth = 1 + 7 * Math.max(0, 1 - L);
       c.beginPath(); c.arc(cx, cy, R + ease(clamp(L / 1.4)) * Math.hypot(w, h) * .6, 0, 6.2832); c.stroke();
     }
-    if (!ready) { // boot progress
+    if (!ready) {
       const p = Math.min(.92, t / (reduce ? .6 : 2.8) * .92); bootFill.style.width = (p * 100) + '%';
       const lines = ['LOADING SPECTRUM ENGINE', 'TUNING FREQUENCY BINS', 'SYNCING STORAGE'];
       bootLine.textContent = lines[Math.min(2, Math.floor(p * 3.2))] + '…';
@@ -860,13 +1024,12 @@ const Intro = (() => {
     el.style.display = 'none'; el.style.webkitMaskImage = el.style.maskImage = '';
     queue.splice(0).forEach(f => { try { f(); } catch {} });
   }
-  function forceOpen() { vizGain = 1; held.forEach(e => e.classList.remove('intro-hold')); el.style.display = 'none'; finished = true; cancelAnimationFrame(raf); queue.splice(0).forEach(f => { try { f(); } catch {} }); }
 
   async function launch(withAudio) {
     if (state !== 'boot' || !ready) return;
     state = 'wait'; startBtn.disabled = skipBtn.disabled = true;
-    const audioP = withAudio ? enableRealAudio() : Promise.resolve(false);   // must be called synchronously inside the click
-    if (withAudio) bootLine.textContent = 'SELECT “THIS TAB” + ENABLE “SHARE TAB AUDIO”';
+    const audioP = withAudio ? enableRealAudio() : Promise.resolve(false);
+    if (withAudio) bootLine.textContent = 'SELECT AUDIO SOURCE IN POPUP WINDOW...';
     const ok = await audioP;
     state = 'launch'; launchAt = performance.now();
     bootLine.textContent = ok ? 'AUDIO LINK ESTABLISHED' : 'AMBIENT MODE ENGAGED'; bootFill.style.width = '100%';
@@ -895,13 +1058,13 @@ const Intro = (() => {
           bootLine.textContent = `${Store.data.favorites.length} FAVORITES RESTORED · SYSTEMS READY`;
           startBtn.classList.add('ready'); skipBtn.classList.add('ready'); startBtn.focus();
         });
-      } catch (e) { console.error(e); forceOpen(); }
+      } catch (e) { console.error(e); }
     },
     whenDone(fn) { finished ? fn() : queue.push(fn); }
   };
 })();
 
-/* ---------------- boot ---------------- */
+/* ---------------- APPLICATION BOOT ---------------- */
 const storeReady = Store.init(refreshUI).then(r => {
   refreshUI();
   Intro.whenDone(() => {
@@ -911,7 +1074,7 @@ const storeReady = Store.init(refreshUI).then(r => {
       const once = async () => { removeEventListener('pointerdown', once, true); const ok = await Store.reconnect(true); refreshUI(); setStatus(ok ? 'Backup folder reconnected ✔' : 'Folder not reconnected — use the 📁 button.'); };
       addEventListener('pointerdown', once, true);
     } else if (!Store.hasHandle && Store.supported) {
-      setStatus(n ? `${n} favorites loaded. Tip: set a 📁 backup folder for extra safety.` : 'Tip: set a 📁 backup folder (e.g. DART_VIZ_DATA on Desktop) to never lose favorites.', 6000);
+      setStatus(n ? `${n} favorites loaded. Tip: set a 📁 backup folder for extra safety.` : 'Tip: set a 📁 backup folder to never lose favorites.', 6000);
     }
   });
 });
