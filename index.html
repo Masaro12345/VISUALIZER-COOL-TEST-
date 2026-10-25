@@ -118,6 +118,8 @@
   }
   #intro-skip-btn.ready { opacity: 1; pointer-events: auto; }
   #intro-skip-btn:hover { color: #e0f2fe; }
+  #intro-fs-label { color: rgba(180,220,255,.55); font-size: 11px; letter-spacing: .1em; margin-top: 10px; cursor: pointer; user-select: none; }
+  #intro-fs-label input { accent-color: #00d2ff; vertical-align: -2px; margin-right: 6px; }
   #intro-flash {
     position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0;
     background: radial-gradient(circle, #fff 0%, #00e1ff 35%, transparent 70%);
@@ -152,12 +154,20 @@
      Anchored bottom-right so YouTube's control bar and "Skip ad" button never get cropped off. */
   body.vfill #video-stage iframe {
     inset: auto; right: 0; bottom: 0;
-    width: max(100cqw, calc(100cqh * 16 / 9));
-    height: max(100cqh, calc(100cqw * 9 / 16));
+    width: calc(max(100cqw, calc(100cqh * 16 / 9)) * var(--vz, 1));
+    height: calc(max(100cqh, calc(100cqw * 9 / 16)) * var(--vz, 1));
   }
   @supports not (width: 1cqw) {
-    body.vfill #video-stage iframe { width: max(100vw, calc(100vh * 16 / 9)); height: max(100vh, calc(100vw * 9 / 16)); }
+    body.vfill #video-stage iframe { width: calc(max(100vw, calc(100vh * 16 / 9)) * var(--vz, 1)); height: calc(max(100vh, calc(100vw * 9 / 16)) * var(--vz, 1)); }
   }
+  /* Zoomed (for portrait/4:3 videos with built-in black bars): centered so both side bars shrink equally */
+  /* Controls OFF = the classic look: centered, 2% overscan, clicks pass through to the visualizer */
+  body.vfill.vctl-off #video-stage iframe {
+    inset: auto; left: 50%; top: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%); pointer-events: none;
+    width: calc(max(100cqw, calc(100cqh * 16 / 9)) * var(--vz, 1) * 1.02);
+    height: calc(max(100cqh, calc(100cqw * 9 / 16)) * var(--vz, 1) * 1.02);
+  }
+  body.vfill.vzoomed #video-stage iframe { inset: auto; left: 50%; top: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
   #placeholder-msg {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     z-index: 2; color: rgba(180, 220, 255, 0.6); font-size: 15px; text-align: center; max-width: 420px; line-height: 1.6;
@@ -345,6 +355,7 @@
     <div class="boot-line" id="boot-line">BOOTING SPECTRUM ENGINE...</div>
     <button id="intro-start-btn">INITIALIZE · ENABLE AUDIO</button>
     <button id="intro-skip-btn">start without audio</button>
+    <label id="intro-fs-label"><input type="checkbox" id="intro-fs" checked> start in fullscreen</label>
   </div>
   <div id="intro-flash"></div>
 </div>
@@ -402,6 +413,9 @@
     <option value="bars" selected>📊 Bars Style</option><option value="wave">⚡ Rapid Wave Style</option>
     <option value="sea_wave">🌊 Sea Waves Style</option><option value="radial">💫 Radial Ring Style</option>
   </select>
+  <button id="fs-btn" title="Browser fullscreen (F or double-click)">⛶ Fullscreen</button>
+  <select id="vzoom-select" aria-label="Video zoom" title="Zoom in to remove black bars baked into the video (+ / - keys)"><option value="1">🔍 Zoom 100%</option><option value="1.15">🔍 Zoom 115%</option><option value="1.3">🔍 Zoom 130%</option><option value="1.5">🔍 Zoom 150%</option><option value="1.75">🔍 Zoom 175%</option><option value="2">🔍 Zoom 200%</option></select>
+  <button id="vctl-btn" title="Hide YouTube's controls for the clean old-style full fit (C). Turn on to click Skip ad.">🎛️ Controls: On</button>
   <button id="vfill-btn" title="Make the video fill the whole window (V). Fit = show the whole frame.">🖼️ Video: Fill</button>
   <button id="capture-btn" title="Open full source picker for Screen, Window, or Tab audio">Enable Real Audio-Reactive</button>
   <button id="sim-btn">Use Ambient Mode</button>
@@ -704,7 +718,56 @@ function applyVideoFill() {
 function toggleVideoFill() { videoFill = !videoFill; applyVideoFill(); savePrefs(); setStatus(videoFill ? 'Video fills the whole window.' : 'Video fits inside the window (full frame).'); }
 $('vfill-btn').addEventListener('click', toggleVideoFill);
 addEventListener('keydown', e => { if ((e.key === 'v' || e.key === 'V') && !e.ctrlKey && !e.metaKey && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) toggleVideoFill(); });
-applyVideoFill();
+let videoZoom = 1;
+try { const z = parseFloat(JSON.parse(localStorage.getItem('yt_viz_prefs') || '{}').videoZoom); if (z >= 1 && z <= 2) videoZoom = z; } catch {}
+const ZOOMS = [1, 1.15, 1.3, 1.5, 1.75, 2];
+function applyVideoZoom() {
+  document.documentElement.style.setProperty('--vz', String(videoZoom));
+  document.body.classList.toggle('vzoomed', videoZoom > 1);
+  const sel = $('vzoom-select'); if (sel) sel.value = String(ZOOMS.includes(videoZoom) ? videoZoom : 1);
+}
+function setVideoZoom(z, say) { videoZoom = z; if (z > 1 && !videoFill) { videoFill = true; applyVideoFill(); } applyVideoZoom(); savePrefs(); if (say) setStatus(z > 1 ? `Video zoom ${Math.round(z * 100)}% — press V or pick 100% to see the Skip ad button.` : 'Video zoom 100%.', 4500); }
+$('vzoom-select').addEventListener('change', e => setVideoZoom(parseFloat(e.target.value), true));
+addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  const i = ZOOMS.findIndex(z => Math.abs(z - videoZoom) < 0.01);
+  if (e.key === '+' || e.key === '=') setVideoZoom(ZOOMS[Math.min(ZOOMS.length - 1, (i < 0 ? 0 : i) + 1)], true);
+  else if (e.key === '-' || e.key === '_') setVideoZoom(ZOOMS[Math.max(0, (i < 0 ? 0 : i) - 1)], true);
+});
+applyVideoFill(); applyVideoZoom();
+
+/* Player controls on/off (off = clean classic fit like the old visualizer) */
+let playerControls = true, resumeAt = 0;
+try { if (JSON.parse(localStorage.getItem('yt_viz_prefs') || '{}').playerControls === false) playerControls = false; } catch {}
+const yvars = () => { const v = { autoplay: 1, controls: playerControls ? 1 : 0, modestbranding: 1, rel: 0, playsinline: 1 }; if (resumeAt > 1) v.start = Math.floor(resumeAt); resumeAt = 0; return v; };
+function applyPlayerControls() { document.body.classList.toggle('vctl-off', !playerControls); $('vctl-btn').textContent = playerControls ? '🎛️ Controls: On' : '🎛️ Controls: Off'; }
+function togglePlayerControls() {
+  playerControls = !playerControls; applyPlayerControls(); savePrefs();
+  if (currentVideoId) {   // YouTube only reads this setting when a player is created, so rebuild it at the same time position
+    let t = 0; try { t = player && player.getCurrentTime ? player.getCurrentTime() : 0; } catch {}
+    try { if (player && player.destroy) player.destroy(); } catch {}
+    player = null; resumeAt = t; startPlayer(currentVideoId);
+  }
+  setStatus(playerControls ? 'Player controls on — you can click Skip ad.' : 'Controls hidden — clean full-window fit. Press C to bring them back.', 4500);
+}
+$('vctl-btn').addEventListener('click', togglePlayerControls);
+addEventListener('keydown', e => { if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) togglePlayerControls(); });
+applyPlayerControls();
+
+/* Browser fullscreen: hides tabs, bookmarks bar and taskbar so the page truly fills the screen */
+const fsOn = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+function toggleFullscreen() {
+  const root = document.documentElement;
+  try {
+    const r = fsOn() ? (document.exitFullscreen || document.webkitExitFullscreen).call(document) : (root.requestFullscreen || root.webkitRequestFullscreen).call(root, { navigationUI: 'hide' });
+    if (r && r.catch) r.catch(() => setStatus('Fullscreen was blocked by the browser.'));
+  } catch { setStatus('Fullscreen is not available here.'); }
+}
+function fsChanged() { $('fs-btn').textContent = fsOn() ? '🗗 Exit Fullscreen' : '⛶ Fullscreen'; if (fsOn()) setStatus('Fullscreen — F or Esc exits.', 3500); }
+$('fs-btn').addEventListener('click', toggleFullscreen);
+document.addEventListener('fullscreenchange', fsChanged); document.addEventListener('webkitfullscreenchange', fsChanged);
+document.addEventListener('dblclick', e => { if (!e.target.closest('#panel, #intro-screen, button, select, iframe')) toggleFullscreen(); });
+addEventListener('keydown', e => { if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) toggleFullscreen(); });
 
 /* ---------------- YOUTUBE PLAYER WITH CONTROLS ENABLED ---------------- */
 function freshTarget() {
@@ -719,7 +782,7 @@ function setIframeVideo(id) {
   const t = freshTarget();
   const f = document.createElement('iframe');
   f.setAttribute('allow', 'autoplay; encrypted-media'); f.setAttribute('allowfullscreen', 'true');
-  f.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&controls=1&modestbranding=1&rel=0&playsinline=1&loop=1&playlist=${id}&mute=1`;
+  f.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&controls=${playerControls ? 1 : 0}&modestbranding=1&rel=0&playsinline=1&loop=1&playlist=${id}&mute=1${resumeAt > 1 ? '&start=' + Math.floor(resumeAt) : ''}`; resumeAt = 0;
   f.title = "YouTube video player";
   t.appendChild(f);
 }
@@ -743,7 +806,7 @@ async function startPlayer(id) {
   const t = freshTarget();
   player = new YT.Player(t, {
     videoId: id,
-    playerVars: { autoplay: 1, controls: 1, modestbranding: 1, rel: 0, playsinline: 1 },
+    playerVars: yvars(),
     events: {
       onReady: e => { e.target.playVideo(); e.target.setPlaybackRate(currentSpeed); },
       onStateChange: e => { if (e.data === 0) { e.target.seekTo(0, true); e.target.playVideo(); } },
@@ -793,7 +856,7 @@ try {
   if (THEMES[prefs.theme]) { currentTheme = THEMES[prefs.theme]; themeSelectEl.value = prefs.theme; }
   if (['bars', 'wave', 'sea_wave', 'radial'].includes(prefs.style)) { vizStyle = prefs.style; vizStyleSelectEl.value = prefs.style; }
 } catch {}
-const savePrefs = () => { try { localStorage.setItem('yt_viz_prefs', JSON.stringify({ theme: THEMES.indexOf(currentTheme), style: vizStyle, videoFill })); } catch {} };
+const savePrefs = () => { try { localStorage.setItem('yt_viz_prefs', JSON.stringify({ theme: THEMES.indexOf(currentTheme), style: vizStyle, videoFill, videoZoom, playerControls })); } catch {} };
 themeSelectEl.addEventListener('change', e => { currentTheme = THEMES[parseInt(e.target.value, 10)] || THEMES[0]; savePrefs(); });
 vizStyleSelectEl.addEventListener('change', savePrefs);
 
@@ -1091,7 +1154,7 @@ async function enableRealAudio() {
     src.connect(analyser); mode = 'real'; setStatus('Audio-reactive mode engaged!');
     tracks[0].addEventListener('ended', () => { mode = 'ambient'; setStatus('Audio sharing ended — back to ambient.'); });
     return true;
-  } catch { setStatus('Audio capture cancelled — ambient mode.'); return false; }
+  } catch (e) { if (e && e.name === 'InvalidStateError') return 'gesture'; setStatus('Audio capture cancelled — ambient mode.'); return false; }
 }
 $('capture-btn').addEventListener('click', () => enableRealAudio());
 $('sim-btn').addEventListener('click', () => { mode = 'ambient'; setStatus('Ambient mode running.'); });
@@ -1118,6 +1181,7 @@ const Intro = (() => {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const held = [panelEl, statusEl, $('toggle-panel'), $('brand-logo-container'), $('reveal-player')];
   const queue = [], sleep = ms => new Promise(r => setTimeout(r, ms)), ease = x => 1 - Math.pow(1 - x, 3), clamp = x => Math.min(1, Math.max(0, x));
+  let gestureNeeded = false;
   let w = 0, h = 0, t0 = performance.now(), raf = 0, state = 'boot', launchAt = 0, ready = false, finished = false;
 
   'DART VIZ'.split('').forEach((ch, i) => { const s = document.createElement('span'); s.textContent = ch; s.style.animationDelay = (.5 + i * .09) + 's'; if (ch === ' ') s.style.width = '.35em'; titleEl.appendChild(s); });
@@ -1173,9 +1237,17 @@ const Intro = (() => {
   async function launch(withAudio) {
     if (state !== 'boot' || !ready) return;
     state = 'wait'; startBtn.disabled = skipBtn.disabled = true;
+    const introFs = $('intro-fs');
+    try { localStorage.setItem('yt_viz_introfs', introFs.checked ? '1' : '0'); } catch {}
+    if (introFs.checked && !gestureNeeded && !fsOn()) toggleFullscreen();     // enter fullscreen immediately on this click
     const audioP = withAudio ? enableRealAudio() : Promise.resolve(false);
     if (withAudio) bootLine.textContent = 'SELECT AUDIO SOURCE IN POPUP WINDOW...';
-    const ok = await audioP;
+    let ok = await audioP;
+    if (ok === 'gesture') {   // browser used this click for fullscreen — ask for one more click for the audio prompt
+      gestureNeeded = true; state = 'boot'; startBtn.disabled = skipBtn.disabled = false;
+      startBtn.textContent = 'CLICK TO SHARE AUDIO'; bootLine.textContent = 'FULLSCREEN ON · ONE MORE CLICK FOR AUDIO';
+      return;
+    }
     state = 'launch'; launchAt = performance.now();
     bootLine.textContent = ok ? 'AUDIO LINK ESTABLISHED' : 'AMBIENT MODE ENGAGED'; bootFill.style.width = '100%';
     if (reduce) { el.classList.add('fade-out'); release(); setTimeout(finish, 950); return; }
@@ -1190,6 +1262,7 @@ const Intro = (() => {
     })(start));
     finish();
   }
+  try { if (localStorage.getItem('yt_viz_introfs') === '0') $('intro-fs').checked = false; } catch {}
   startBtn.addEventListener('click', () => launch(true));
   skipBtn.addEventListener('click', () => launch(false));
   addEventListener('keydown', e => { if (e.key === 'Escape' && ready && state === 'boot') launch(false); });
