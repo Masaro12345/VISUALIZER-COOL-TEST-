@@ -146,7 +146,18 @@
   .brand-subtitle { color: var(--ok); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.8; }
 
   #video-stage { position: fixed; inset: 0; overflow: hidden; background: #02060f; z-index: 1; }
+  #video-stage { container-type: size; }
   #video-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: auto; border: 0; }
+  /* FILL mode: always covers the whole window at 16:9, recalculated by CSS on every resize/minimize/restore.
+     Anchored bottom-right so YouTube's control bar and "Skip ad" button never get cropped off. */
+  body.vfill #video-stage iframe {
+    inset: auto; right: 0; bottom: 0;
+    width: max(100cqw, calc(100cqh * 16 / 9));
+    height: max(100cqh, calc(100cqw * 9 / 16));
+  }
+  @supports not (width: 1cqw) {
+    body.vfill #video-stage iframe { width: max(100vw, calc(100vh * 16 / 9)); height: max(100vh, calc(100vw * 9 / 16)); }
+  }
   #placeholder-msg {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     z-index: 2; color: rgba(180, 220, 255, 0.6); font-size: 15px; text-align: center; max-width: 420px; line-height: 1.6;
@@ -391,6 +402,7 @@
     <option value="bars" selected>📊 Bars Style</option><option value="wave">⚡ Rapid Wave Style</option>
     <option value="sea_wave">🌊 Sea Waves Style</option><option value="radial">💫 Radial Ring Style</option>
   </select>
+  <button id="vfill-btn" title="Make the video fill the whole window (V). Fit = show the whole frame.">🖼️ Video: Fill</button>
   <button id="capture-btn" title="Open full source picker for Screen, Window, or Tab audio">Enable Real Audio-Reactive</button>
   <button id="sim-btn">Use Ambient Mode</button>
   <select id="theme-select" aria-label="Visual theme"></select>
@@ -682,6 +694,18 @@ speedSelectEl.addEventListener('change', e => {
 });
 vizStyleSelectEl.addEventListener('change', e => { vizStyle = e.target.value; });
 
+/* ---------------- VIDEO FILL / FIT ---------------- */
+let videoFill = true;
+try { if (JSON.parse(localStorage.getItem('yt_viz_prefs') || '{}').videoFill === false) videoFill = false; } catch {}
+function applyVideoFill() {
+  document.body.classList.toggle('vfill', videoFill);
+  $('vfill-btn').textContent = videoFill ? '🖼️ Video: Fill' : '🖼️ Video: Fit';
+}
+function toggleVideoFill() { videoFill = !videoFill; applyVideoFill(); savePrefs(); setStatus(videoFill ? 'Video fills the whole window.' : 'Video fits inside the window (full frame).'); }
+$('vfill-btn').addEventListener('click', toggleVideoFill);
+addEventListener('keydown', e => { if ((e.key === 'v' || e.key === 'V') && !e.ctrlKey && !e.metaKey && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) toggleVideoFill(); });
+applyVideoFill();
+
 /* ---------------- YOUTUBE PLAYER WITH CONTROLS ENABLED ---------------- */
 function freshTarget() {
   const stage = $('video-stage');
@@ -769,7 +793,7 @@ try {
   if (THEMES[prefs.theme]) { currentTheme = THEMES[prefs.theme]; themeSelectEl.value = prefs.theme; }
   if (['bars', 'wave', 'sea_wave', 'radial'].includes(prefs.style)) { vizStyle = prefs.style; vizStyleSelectEl.value = prefs.style; }
 } catch {}
-const savePrefs = () => { try { localStorage.setItem('yt_viz_prefs', JSON.stringify({ theme: THEMES.indexOf(currentTheme), style: vizStyle })); } catch {} };
+const savePrefs = () => { try { localStorage.setItem('yt_viz_prefs', JSON.stringify({ theme: THEMES.indexOf(currentTheme), style: vizStyle, videoFill })); } catch {} };
 themeSelectEl.addEventListener('change', e => { currentTheme = THEMES[parseInt(e.target.value, 10)] || THEMES[0]; savePrefs(); });
 vizStyleSelectEl.addEventListener('change', savePrefs);
 
