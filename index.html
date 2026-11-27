@@ -401,6 +401,16 @@
   #panel.hidden { opacity: 0; visibility: hidden; transform: translateX(-50%) translateY(-10px); }
   #status.hidden { display: none; }
   #snare-flash { position: fixed; inset: 0; z-index: 5; pointer-events: none; background: #00e1ff; opacity: 0; mix-blend-mode: screen; will-change: opacity; }
+  /* --- Folder problem report --- */
+  #folder-report { position: fixed; inset: 0; z-index: 100000; display: none; align-items: center; justify-content: center; background: rgba(2, 6, 15, 0.72); backdrop-filter: blur(4px); padding: 16px; }
+  #folder-report.show { display: flex; }
+  #folder-report .box { width: min(560px, 100%); max-height: 86vh; max-height: 86dvh; overflow: auto; background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 12px; padding: 20px 22px; color: #e0f2fe; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); }
+  #folder-report h2 { margin: 0 0 8px; font-size: 15px; color: var(--accent); letter-spacing: 0.04em; }
+  #folder-report p { margin: 0 0 12px; font-size: 13px; line-height: 1.5; color: rgba(224, 242, 254, 0.88); }
+  #folder-report pre { margin: 0 0 14px; padding: 10px 12px; background: rgba(0, 150, 255, 0.08); border: 1px solid rgba(0, 210, 255, 0.25); border-radius: 8px; font: 11px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word; color: #bfe9ff; user-select: text; }
+  #folder-report .row { display: flex; gap: 10px; justify-content: flex-end; }
+  #folder-report button { background: #080d18; border: 1px solid rgba(0, 210, 255, 0.35); color: var(--accent); padding: 9px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  #folder-report button:hover { background: rgba(0, 210, 255, 0.25); }
 </style>
 </head>
 <body>
@@ -505,6 +515,15 @@
 
 <div id="status">Ambient mode running. Real mode requires sharing audio.</div>
 
+<div id="folder-report" role="dialog" aria-modal="true" aria-labelledby="folder-report-title">
+  <div class="box">
+    <h2 id="folder-report-title">Backup folder problem</h2>
+    <p id="folder-report-hint"></p>
+    <pre id="folder-report-text"></pre>
+    <div class="row"><button id="folder-report-copy">Copy report</button><button id="folder-report-close">Close</button></div>
+  </div>
+</div>
+
 <script>
 (function(){
 'use strict';
@@ -516,7 +535,7 @@ const Store = (() => {
   const MAIN_FILE='dart_viz_data.json', LIST_FILE='favorites_readable.txt';
   const HIST_MAX=25;
   const data = { favorites: [], history: [] };
-  let dirHandle = null, dirOK = false, onChange = () => {}, timer = null;
+  let dirHandle = null, dirOK = false, onChange = () => {}, timer = null, lastRaw = '';
   const folderSupported = typeof window.showDirectoryPicker === 'function';
 
   let dbp = null;
@@ -554,9 +573,14 @@ const Store = (() => {
   async function perm(h, ask) {
     const o = { mode: 'readwrite' };
     try {
-      if ((await h.queryPermission(o)) === 'granted') return true;
-      if (ask && (await h.requestPermission(o)) === 'granted') return true;
-    } catch {}
+      const q = await h.queryPermission(o);
+      if (q === 'granted') return true;
+      if (ask) {
+        const r = await h.requestPermission(o);
+        if (r === 'granted') return true;
+        lastRaw = 'requestPermission returned "' + r + '" (queryPermission was "' + q + '")';
+      } else lastRaw = 'queryPermission returned "' + q + '"';
+    } catch (e) { lastRaw = ((e && e.name) || 'Error') + ': ' + ((e && e.message) || 'no message'); }
     return false;
   }
   async function writeFile(dir, name, text) {
@@ -573,7 +597,7 @@ const Store = (() => {
   /* FIX: remember WHY a folder action failed so the status bar can say it, instead of one generic message. */
   let lastError = '';
   const errMsg = e => {
-    const n = e && e.name;
+    const n = e && e.name; lastRaw = (n || 'Error') + ': ' + ((e && e.message) || 'no message');
     if (n === 'AbortError') return 'Folder pick cancelled.';
     if (n === 'NotAllowedError') return 'Permission denied. Click again and choose Allow.';
     if (n === 'NotFoundError') return 'That folder no longer exists. Pick a new one.';
@@ -610,7 +634,7 @@ const Store = (() => {
     if (!folderSupported) return { ok: false, msg: 'Folder backup needs Chrome/Edge. Use  Save File instead.' };
     let h;
     try { h = await window.showDirectoryPicker({ id: 'dartviz', mode: 'readwrite', startIn: 'desktop' }); }
-    catch (e) { return { ok: false, msg: errMsg(e) }; }
+    catch (e) { return { ok: false, msg: errMsg(e), cancelled: !!(e && e.name === 'AbortError') }; }
     try {
       if (!(await perm(h, true))) return { ok: false, msg: 'Folder permission denied.' };
       dirHandle = h; dirOK = true; lastError = '';
@@ -628,6 +652,23 @@ const Store = (() => {
     if (!dirOK) lastError = 'Permission not granted.';
     else { absorb(await readFolder()); await persistAll(); }   // persistAll flips dirOK off again if the write fails
     onChange(); return dirOK;
+  }
+
+  /* Plain-text report so the real cause of a folder failure is visible and copyable. */
+  async function diagnose() {
+    const L = [];
+    let embedded; try { embedded = window.self !== window.top; } catch { embedded = true; }
+    L.push('page: ' + location.protocol + '//' + (location.host || '(local file)'));
+    L.push('secure context: ' + window.isSecureContext + ' | embedded frame: ' + embedded);
+    L.push('folder API: ' + (folderSupported ? 'available' : 'NOT available in this browser'));
+    L.push('fullscreen: ' + !!(document.fullscreenElement || document.webkitFullscreenElement));
+    let st = 'none saved';
+    if (dirHandle) { try { st = dirHandle.name + ' - permission: ' + await dirHandle.queryPermission({ mode: 'readwrite' }); } catch (e) { st = dirHandle.name + ' - ' + (e && e.name); } }
+    L.push('saved folder: ' + st);
+    L.push('linked now: ' + dirOK);
+    if (lastRaw) L.push('last error: ' + lastRaw);
+    L.push('browser: ' + navigator.userAgent);
+    return L.join('\n');
   }
 
   async function init(cb) {
@@ -651,6 +692,7 @@ const Store = (() => {
     data, init, save, flushNow, chooseFolder, reconnect, absorb, snapshot, clean,
     get linked() { return dirOK; }, get hasHandle() { return !!dirHandle; }, get folderName() { return dirHandle ? dirHandle.name : ''; }, get supported() { return folderSupported; },
     get lastError() { return lastError; },
+    diagnose,
     setHistory(list) { data.history = list.slice(0, HIST_MAX); }
   };
 })();
@@ -688,6 +730,7 @@ setTimeout(() => $('brand-logo-container').classList.add('faded'), 120000);
 
 let player = null, currentSpeed = 1, vizStyle = 'bars', currentVideoId = null, currentVideoTitle = 'YouTube Video';
 let favPage = 1, isUserScrubbing = false, statusTimer = null, previewToken = 0, previewHideTimer = null;
+let embeddedFrame; try { embeddedFrame = window.self !== window.top; } catch { embeddedFrame = true; }
 let reconnectFailed = false;   // FIX: set after a failed reconnect so the folder button switches to "choose a new folder"
 const PER_PAGE = 5;
 
@@ -719,11 +762,28 @@ function renderFavBtn() {
 function renderFolderBtn() {
   folderBtn.classList.remove('linked', 'warn');
   if (!Store.supported) { folderBtn.textContent = '📁 Folder: Chrome/Edge only'; return; }
+  if (embeddedFrame && !Store.linked) { folderBtn.classList.add('warn'); folderBtn.textContent = '📁 Set Folder (open in a Chrome/Edge tab)'; return; }
   if (Store.linked) { folderBtn.classList.add('linked'); folderBtn.textContent = `📁 ✔ ${shorten(Store.folderName, 14)}`; }
   else if (Store.hasHandle) { folderBtn.classList.add('warn'); folderBtn.textContent = reconnectFailed ? '📁 Choose New Folder' : '📁 Click to Reconnect'; }
   else folderBtn.textContent = '📁 Set Backup Folder';
 }
 const refreshUI = () => { renderHistory(); renderFavorites(); renderFolderBtn(); };
+
+/* Folder problem report (shown only when a folder action really fails, never on a plain cancel) */
+async function showFolderReport(hint) {
+  $('folder-report-hint').textContent = hint;
+  $('folder-report-text').textContent = await Store.diagnose();
+  $('folder-report').classList.add('show');
+}
+$('folder-report-close').addEventListener('click', () => $('folder-report').classList.remove('show'));
+$('folder-report-copy').addEventListener('click', async () => {
+  const el = $('folder-report-text');
+  try { await navigator.clipboard.writeText(el.textContent); setStatus('Report copied.'); }
+  catch { const r = document.createRange(); r.selectNodeContents(el); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); setStatus('Press Ctrl+C to copy the selected report.', 4000); }
+});
+addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('folder-report').classList.contains('show')) { $('folder-report').classList.remove('show'); e.stopImmediatePropagation(); }
+}, true);
 
 $('fav-prev-btn').addEventListener('click', () => { const p = Math.max(1, Math.ceil(Store.data.favorites.length / PER_PAGE)); favPage = favPage <= 1 ? p : favPage - 1; renderFavorites(); });
 $('fav-next-btn').addEventListener('click', () => { const p = Math.max(1, Math.ceil(Store.data.favorites.length / PER_PAGE)); favPage = favPage >= p ? 1 : favPage + 1; renderFavorites(); });
@@ -739,15 +799,24 @@ favBtn.addEventListener('click', () => {
 /* FIX: no confirm() before the picker (it consumed the click's user-activation, so Chrome refused the picker).
    If a reconnect fails, the next click goes straight to choosing a new folder instead of looping on reconnect.
    Real error reasons are shown in the status bar. */
+let fsRetry = false;   // a folder action failed while in fullscreen: leave fullscreen first next time (Chrome can hide its prompts there)
 folderBtn.addEventListener('click', async () => {
+  if (fsRetry && fsOn()) { try { await (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch {} }
+  fsRetry = false;
   if (Store.hasHandle && !Store.linked && !reconnectFailed) {
     const ok = await Store.reconnect(true);
     if (ok) { reconnectFailed = false; refreshUI(); return setStatus('Folder reconnected & synced '); }
-    reconnectFailed = true; refreshUI();
-    return setStatus((Store.lastError || 'Could not reconnect.') + ' Click again to choose a different folder.', 6000);
+    reconnectFailed = true; fsRetry = fsOn(); refreshUI();
+    const why = Store.lastError || 'Could not reconnect.';
+    setStatus(why + ' Click again to choose a different folder.', 6000);
+    return showFolderReport(why + (fsRetry ? ' You are in fullscreen, so the next click leaves fullscreen first (Chrome can hide its permission prompt there).' : ' Click the button again to choose a different folder.'));
   }
   reconnectFailed = false;
   const r = await Store.chooseFolder(); setStatus(r.msg, 6000); refreshUI();
+  if (!r.ok && !r.cancelled) {
+    fsRetry = fsOn();
+    showFolderReport(r.msg + (fsRetry ? ' You are in fullscreen, so the next click leaves fullscreen first.' : ''));
+  }
 });
 $('save-file-btn').addEventListener('click', () => {
   const a = document.createElement('a');
