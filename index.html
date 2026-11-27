@@ -512,7 +512,7 @@
     <input id="time-slider" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek">
     <span id="total-time-display" class="scrubber-time">00:00</span>
   </div>
-  <div id="build-tag">BUILD v4 · FOLDER FIX · 2026-11-27</div>
+  <div id="build-tag">BUILD v5 · FOLDER FIX · 2026-11-27</div>
 </div>
 
 <div id="status">Ambient mode running. Real mode requires sharing audio.</div>
@@ -537,7 +537,9 @@ const Store = (() => {
   const MAIN_FILE='dart_viz_data.json', LIST_FILE='favorites_readable.txt';
   const HIST_MAX=25;
   const data = { favorites: [], history: [] };
-  let dirHandle = null, dirOK = false, onChange = () => {}, timer = null, lastRaw = '';
+  let dirHandle = null, dirOK = false, onChange = () => {}, timer = null, lastRaw = '', step = '';
+  /* A step that never finishes must become a visible error instead of a silent hang. */
+  const T = (p, ms, label) => { let id; return Promise.race([p, new Promise((_, rej) => { id = setTimeout(() => rej(Object.assign(new Error(label + ' did not finish after ' + Math.round(ms / 1000) + 's'), { name: 'TimeoutError' })), ms); })]).finally(() => clearTimeout(id)); };
   const folderSupported = typeof window.showDirectoryPicker === 'function';
 
   let dbp = null;
@@ -591,6 +593,7 @@ const Store = (() => {
   }
   async function readFolder() {
     try {
+      step = 'reading ' + MAIN_FILE;
       const fh = await dirHandle.getFileHandle(MAIN_FILE);
       return JSON.parse(await (await fh.getFile()).text());
     } catch { return null; }
@@ -613,9 +616,12 @@ const Store = (() => {
     if (!dirHandle || !dirOK) return false;
     try {
       const text = snapshot();
+      step = 'writing ' + MAIN_FILE;
       await writeFile(dirHandle, MAIN_FILE, text);
+      step = 'writing ' + LIST_FILE;
       await writeFile(dirHandle, LIST_FILE, readableList());
       const day = new Date().toISOString().slice(0, 10);
+      step = 'creating backups subfolder';
       const bak = await dirHandle.getDirectoryHandle('backups', { create: true });
       await writeFile(bak, `dart_viz_${day}.json`, text);
       return true;
@@ -624,7 +630,9 @@ const Store = (() => {
 
   async function persistAll() {
     try { localStorage.setItem(LS_FAV, JSON.stringify(data.favorites)); localStorage.setItem(LS_HIST, JSON.stringify(data.history)); localStorage.setItem(LS_BAK, snapshot()); } catch {}
+    step = 'saving to browser storage';
     await idbSet('data', { favorites: data.favorites, history: data.history });
+    step = 'writing to folder';
     await writeFolder();
   }
   function save() { clearTimeout(timer); timer = setTimeout(persistAll, 350); }
@@ -638,21 +646,34 @@ const Store = (() => {
     try { h = await window.showDirectoryPicker({ id: 'dartviz', mode: 'readwrite', startIn: 'desktop' }); }
     catch (e) { return { ok: false, msg: errMsg(e), cancelled: !!(e && e.name === 'AbortError') }; }
     try {
-      if (!(await perm(h, true))) return { ok: false, msg: 'Folder permission denied.' };
+      step = 'permission';
+      if (!(await T(perm(h, true), 30000, 'permission'))) return { ok: false, msg: 'Folder permission denied.' };
       dirHandle = h; dirOK = true; lastError = '';
-      await idbSet('dirHandle', h);
-      const added = absorb(await readFolder());
-      await persistAll(); onChange();
+      step = 'remembering folder'; await T(idbSet('dirHandle', h), 6000, 'remembering the folder');
+      step = 'reading existing backup'; const added = absorb(await T(readFolder(), 8000, 'reading the folder'));
+      await T(persistAll(), 12000, 'writing the backup'); onChange();
       if (!dirOK) return { ok: false, msg: lastError || 'Could not write to that folder.' };
       return { ok: true, msg: `Backup folder linked: ${h.name}` + (added ? ` (restored ${added} favorites)` : '') };
-    } catch (e) { return { ok: false, msg: errMsg(e) }; }
+    } catch (e) {
+      if (e && e.name === 'TimeoutError') { dirOK = false; lastRaw = e.message + ' (step: ' + step + ')'; lastError = 'Chrome did not respond while ' + step + '.'; return { ok: false, msg: lastError }; }
+      return { ok: false, msg: errMsg(e) };
+    }
   }
   async function reconnect(ask) {
     if (!dirHandle) return false;
     lastError = '';
-    dirOK = await perm(dirHandle, ask);
-    if (!dirOK) lastError = 'Permission not granted.';
-    else { absorb(await readFolder()); await persistAll(); }   // persistAll flips dirOK off again if the write fails
+    try {
+      step = 'permission';
+      dirOK = await T(perm(dirHandle, ask), 30000, 'permission');
+      if (!dirOK) { lastError = 'Permission not granted.'; onChange(); return false; }
+      onChange();   // show "linked" right away; syncing continues below
+      step = 'reading existing backup'; absorb(await T(readFolder(), 8000, 'reading the folder'));
+      await T(persistAll(), 12000, 'writing the backup');   // persistAll flips dirOK off again if the write fails
+    } catch (e) {
+      dirOK = false;
+      if (e && e.name === 'TimeoutError') { lastRaw = e.message + ' (step: ' + step + ')'; lastError = 'Chrome did not respond while ' + step + '.'; }
+      else lastError = errMsg(e);
+    }
     onChange(); return dirOK;
   }
 
@@ -667,7 +688,7 @@ const Store = (() => {
     let st = 'none saved';
     if (dirHandle) { try { st = dirHandle.name + ' - permission: ' + await dirHandle.queryPermission({ mode: 'readwrite' }); } catch (e) { st = dirHandle.name + ' - ' + (e && e.name); } }
     L.push('saved folder: ' + st);
-    L.push('linked now: ' + dirOK);
+    L.push('linked now: ' + dirOK + (step ? ' | last step: ' + step : ''));
     if (lastRaw) L.push('last error: ' + lastRaw);
     L.push('browser: ' + navigator.userAgent);
     return L.join('\n');
@@ -801,7 +822,7 @@ favBtn.addEventListener('click', () => {
 /* FIX: no confirm() before the picker (it consumed the click's user-activation, so Chrome refused the picker).
    If a reconnect fails, the next click goes straight to choosing a new folder instead of looping on reconnect.
    Real error reasons are shown in the status bar. */
-const BUILD = 'v4';
+const BUILD = 'v5';
 let fsRetry = false;   // a folder action failed while in fullscreen: leave fullscreen first next time (Chrome can hide its prompts there)
 folderBtn.addEventListener('click', async () => {
   console.log('[DART VIZ ' + BUILD + '] folder click', { hasHandle: Store.hasHandle, linked: Store.linked, reconnectFailed, embedded: embeddedFrame, secure: window.isSecureContext, api: Store.supported });
