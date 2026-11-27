@@ -512,7 +512,7 @@
     <input id="time-slider" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek">
     <span id="total-time-display" class="scrubber-time">00:00</span>
   </div>
-  <div id="build-tag">BUILD v5 · FOLDER FIX · 2026-11-27</div>
+  <div id="build-tag">BUILD v6 · FOLDER FIX · 2026-11-27</div>
 </div>
 
 <div id="status">Ambient mode running. Real mode requires sharing audio.</div>
@@ -538,6 +538,7 @@ const Store = (() => {
   const HIST_MAX=25;
   const data = { favorites: [], history: [] };
   let dirHandle = null, dirOK = false, onChange = () => {}, timer = null, lastRaw = '', step = '';
+  const mark = x => { step = x; try { console.log('[DART VIZ] step:', x); } catch {} };
   /* A step that never finishes must become a visible error instead of a silent hang. */
   const T = (p, ms, label) => { let id; return Promise.race([p, new Promise((_, rej) => { id = setTimeout(() => rej(Object.assign(new Error(label + ' did not finish after ' + Math.round(ms / 1000) + 's'), { name: 'TimeoutError' })), ms); })]).finally(() => clearTimeout(id)); };
   const folderSupported = typeof window.showDirectoryPicker === 'function';
@@ -577,10 +578,10 @@ const Store = (() => {
   async function perm(h, ask) {
     const o = { mode: 'readwrite' };
     try {
-      const q = await h.queryPermission(o);
+      const q = await h.queryPermission(o); try { console.log('[DART VIZ] queryPermission:', q); } catch {}
       if (q === 'granted') return true;
       if (ask) {
-        const r = await h.requestPermission(o);
+        const r = await h.requestPermission(o); try { console.log('[DART VIZ] requestPermission:', r); } catch {}
         if (r === 'granted') return true;
         lastRaw = 'requestPermission returned "' + r + '" (queryPermission was "' + q + '")';
       } else lastRaw = 'queryPermission returned "' + q + '"';
@@ -593,7 +594,7 @@ const Store = (() => {
   }
   async function readFolder() {
     try {
-      step = 'reading ' + MAIN_FILE;
+      mark('reading ' + MAIN_FILE);
       const fh = await dirHandle.getFileHandle(MAIN_FILE);
       return JSON.parse(await (await fh.getFile()).text());
     } catch { return null; }
@@ -616,12 +617,12 @@ const Store = (() => {
     if (!dirHandle || !dirOK) return false;
     try {
       const text = snapshot();
-      step = 'writing ' + MAIN_FILE;
+      mark('writing ' + MAIN_FILE);
       await writeFile(dirHandle, MAIN_FILE, text);
-      step = 'writing ' + LIST_FILE;
+      mark('writing ' + LIST_FILE);
       await writeFile(dirHandle, LIST_FILE, readableList());
       const day = new Date().toISOString().slice(0, 10);
-      step = 'creating backups subfolder';
+      mark('creating backups subfolder');
       const bak = await dirHandle.getDirectoryHandle('backups', { create: true });
       await writeFile(bak, `dart_viz_${day}.json`, text);
       return true;
@@ -630,9 +631,9 @@ const Store = (() => {
 
   async function persistAll() {
     try { localStorage.setItem(LS_FAV, JSON.stringify(data.favorites)); localStorage.setItem(LS_HIST, JSON.stringify(data.history)); localStorage.setItem(LS_BAK, snapshot()); } catch {}
-    step = 'saving to browser storage';
+    mark('saving to browser storage');
     await idbSet('data', { favorites: data.favorites, history: data.history });
-    step = 'writing to folder';
+    mark('writing to folder');
     await writeFolder();
   }
   function save() { clearTimeout(timer); timer = setTimeout(persistAll, 350); }
@@ -640,17 +641,20 @@ const Store = (() => {
 
   /* FIX: the picker call is isolated so its real error (cancelled / blocked folder / iframe) is reported,
      and the handle is only kept if a test write succeeds. */
-  async function chooseFolder() {
+  async function chooseFolder(near) {
     if (!folderSupported) return { ok: false, msg: 'Folder backup needs Chrome/Edge. Use  Save File instead.' };
     let h;
-    try { h = await window.showDirectoryPicker({ id: 'dartviz', mode: 'readwrite', startIn: 'desktop' }); }
+    try {
+      try { h = await window.showDirectoryPicker({ id: 'dartviz', mode: 'readwrite', startIn: near || 'desktop' }); }
+      catch (e) { if (near && e && e.name === 'TypeError') h = await window.showDirectoryPicker({ id: 'dartviz', mode: 'readwrite', startIn: 'desktop' }); else throw e; }
+    }
     catch (e) { return { ok: false, msg: errMsg(e), cancelled: !!(e && e.name === 'AbortError') }; }
     try {
-      step = 'permission';
+      mark('permission');
       if (!(await T(perm(h, true), 30000, 'permission'))) return { ok: false, msg: 'Folder permission denied.' };
       dirHandle = h; dirOK = true; lastError = '';
-      step = 'remembering folder'; await T(idbSet('dirHandle', h), 6000, 'remembering the folder');
-      step = 'reading existing backup'; const added = absorb(await T(readFolder(), 8000, 'reading the folder'));
+      mark('remembering folder'); await T(idbSet('dirHandle', h), 6000, 'remembering the folder');
+      mark('reading existing backup'); const added = absorb(await T(readFolder(), 8000, 'reading the folder'));
       await T(persistAll(), 12000, 'writing the backup'); onChange();
       if (!dirOK) return { ok: false, msg: lastError || 'Could not write to that folder.' };
       return { ok: true, msg: `Backup folder linked: ${h.name}` + (added ? ` (restored ${added} favorites)` : '') };
@@ -663,11 +667,11 @@ const Store = (() => {
     if (!dirHandle) return false;
     lastError = '';
     try {
-      step = 'permission';
+      mark('permission');
       dirOK = await T(perm(dirHandle, ask), 30000, 'permission');
       if (!dirOK) { lastError = 'Permission not granted.'; onChange(); return false; }
       onChange();   // show "linked" right away; syncing continues below
-      step = 'reading existing backup'; absorb(await T(readFolder(), 8000, 'reading the folder'));
+      mark('reading existing backup'); absorb(await T(readFolder(), 8000, 'reading the folder'));
       await T(persistAll(), 12000, 'writing the backup');   // persistAll flips dirOK off again if the write fails
     } catch (e) {
       dirOK = false;
@@ -715,6 +719,7 @@ const Store = (() => {
     data, init, save, flushNow, chooseFolder, reconnect, absorb, snapshot, clean,
     get linked() { return dirOK; }, get hasHandle() { return !!dirHandle; }, get folderName() { return dirHandle ? dirHandle.name : ''; }, get supported() { return folderSupported; },
     get lastError() { return lastError; },
+    get handle() { return dirHandle; },
     diagnose,
     setHistory(list) { data.history = list.slice(0, HIST_MAX); }
   };
@@ -787,7 +792,7 @@ function renderFolderBtn() {
   if (!Store.supported) { folderBtn.textContent = '📁 Folder: Chrome/Edge only'; return; }
   if (embeddedFrame && !Store.linked) { folderBtn.classList.add('warn'); folderBtn.textContent = '📁 Set Folder (open in a Chrome/Edge tab)'; return; }
   if (Store.linked) { folderBtn.classList.add('linked'); folderBtn.textContent = `📁 ✔ ${shorten(Store.folderName, 14)}`; }
-  else if (Store.hasHandle) { folderBtn.classList.add('warn'); folderBtn.textContent = reconnectFailed ? '📁 Choose New Folder' : '📁 Click to Reconnect'; }
+  else if (Store.hasHandle) { folderBtn.classList.add('warn'); folderBtn.textContent = '📁 Reconnect Folder'; }
   else folderBtn.textContent = '📁 Set Backup Folder';
 }
 const refreshUI = () => { renderHistory(); renderFavorites(); renderFolderBtn(); };
@@ -822,23 +827,18 @@ favBtn.addEventListener('click', () => {
 /* FIX: no confirm() before the picker (it consumed the click's user-activation, so Chrome refused the picker).
    If a reconnect fails, the next click goes straight to choosing a new folder instead of looping on reconnect.
    Real error reasons are shown in the status bar. */
-const BUILD = 'v5';
-let fsRetry = false;   // a folder action failed while in fullscreen: leave fullscreen first next time (Chrome can hide its prompts there)
+const BUILD = 'v6';
+let fsRetry = false;   // a folder action failed while in fullscreen: leave fullscreen first next time
 folderBtn.addEventListener('click', async () => {
-  console.log('[DART VIZ ' + BUILD + '] folder click', { hasHandle: Store.hasHandle, linked: Store.linked, reconnectFailed, embedded: embeddedFrame, secure: window.isSecureContext, api: Store.supported });
-  setStatus(Store.hasHandle && !Store.linked && !reconnectFailed ? 'Asking Chrome for folder permission…' : 'Opening folder picker…', 3000);
+  console.log('[DART VIZ ' + BUILD + '] folder click', { hasHandle: Store.hasHandle, linked: Store.linked, embedded: embeddedFrame, secure: window.isSecureContext, api: Store.supported });
   if (fsRetry && fsOn()) { try { await (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch {} }
-  fsRetry = false;
-  if (Store.hasHandle && !Store.linked && !reconnectFailed) {
-    const ok = await Store.reconnect(true);
-    if (ok) { reconnectFailed = false; refreshUI(); return setStatus('Folder reconnected & synced '); }
-    reconnectFailed = true; fsRetry = fsOn(); refreshUI();
-    const why = Store.lastError || 'Could not reconnect.';
-    setStatus(why + ' Click again to choose a different folder.', 6000);
-    return showFolderReport(why + (fsRetry ? ' You are in fullscreen, so the next click leaves fullscreen first (Chrome can hide its permission prompt there).' : ' Click the button again to choose a different folder.'));
-  }
-  reconnectFailed = false;
-  const r = await Store.chooseFolder(); setStatus(r.msg, 6000); refreshUI();
+  fsRetry = false; reconnectFailed = false;
+  const reconnecting = Store.hasHandle && !Store.linked;
+  setStatus(reconnecting ? 'Pick your backup folder again (it opens at the old one) to reconnect.' : 'Opening folder picker…', 4000);
+  /* The picker is opened inside the click itself, so Chrome always allows it. A restored folder handle's
+     "reconnect" permission prompt could hang silently, so it is no longer used by this button. */
+  const r = await Store.chooseFolder(reconnecting ? Store.handle : null);
+  setStatus(r.msg, 6000); refreshUI();
   if (!r.ok && !r.cancelled) {
     fsRetry = fsOn();
     showFolderReport(r.msg + (fsRetry ? ' You are in fullscreen, so the next click leaves fullscreen first.' : ''));
