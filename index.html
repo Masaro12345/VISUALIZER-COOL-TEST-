@@ -401,6 +401,7 @@
   #panel.hidden { opacity: 0; visibility: hidden; transform: translateX(-50%) translateY(-10px); }
   #status.hidden { display: none; }
   #snare-flash { position: fixed; inset: 0; z-index: 5; pointer-events: none; background: #00e1ff; opacity: 0; mix-blend-mode: screen; will-change: opacity; }
+  #build-tag { width: 100%; text-align: right; font: 600 9px ui-monospace, Consolas, monospace; letter-spacing: .12em; color: rgba(180,220,255,.35); margin-top: 2px; user-select: text; }
   /* --- Folder problem report --- */
   #folder-report { position: fixed; inset: 0; z-index: 100000; display: none; align-items: center; justify-content: center; background: rgba(2, 6, 15, 0.72); backdrop-filter: blur(4px); padding: 16px; }
   #folder-report.show { display: flex; }
@@ -511,6 +512,7 @@
     <input id="time-slider" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek">
     <span id="total-time-display" class="scrubber-time">00:00</span>
   </div>
+  <div id="build-tag">BUILD v4 · FOLDER FIX · 2026-11-27</div>
 </div>
 
 <div id="status">Ambient mode running. Real mode requires sharing audio.</div>
@@ -799,8 +801,11 @@ favBtn.addEventListener('click', () => {
 /* FIX: no confirm() before the picker (it consumed the click's user-activation, so Chrome refused the picker).
    If a reconnect fails, the next click goes straight to choosing a new folder instead of looping on reconnect.
    Real error reasons are shown in the status bar. */
+const BUILD = 'v4';
 let fsRetry = false;   // a folder action failed while in fullscreen: leave fullscreen first next time (Chrome can hide its prompts there)
 folderBtn.addEventListener('click', async () => {
+  console.log('[DART VIZ ' + BUILD + '] folder click', { hasHandle: Store.hasHandle, linked: Store.linked, reconnectFailed, embedded: embeddedFrame, secure: window.isSecureContext, api: Store.supported });
+  setStatus(Store.hasHandle && !Store.linked && !reconnectFailed ? 'Asking Chrome for folder permission…' : 'Opening folder picker…', 3000);
   if (fsRetry && fsOn()) { try { await (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch {} }
   fsRetry = false;
   if (Store.hasHandle && !Store.linked && !reconnectFailed) {
