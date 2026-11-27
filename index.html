@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DART VIZ - Ultimate Audio Visualizer (Remixed Edition)</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20200%20200'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='0'%20x2='1'%20y2='1'%3E%3Cstop%20offset='0'%20stop-color='%2300a2ff'/%3E%3Cstop%20offset='1'%20stop-color='%2300ff9d'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='200'%20height='200'%20rx='40'%20fill='%2302060f'/%3E%3Cpath%20fill='url%28%23g%29'%20fill-rule='evenodd'%20d='M44%2056H104A44%2044%200%200%201%20104%20144H44Z%20M58%2070H104A30%2030%200%200%201%20104%20130H58Z'/%3E%3Cpath%20d='M80%2082L124%20100L80%20118Z'%20fill='url%28%23g%29'/%3E%3C/svg%3E">
 <style>
   :root {
     --panel-bg: rgba(8, 12, 22, 0.95);
@@ -72,28 +73,26 @@
   .intro-content.leaving {
     opacity: 0; transform: scale(1.25);
   }
+  .intro-content { --S: clamp(150px, min(30vh, 62vw), 290px); }
   .intro-logo {
-    position: relative; width: 92px; height: 92px;
+    position: relative; width: var(--S); height: var(--S);
     display: flex; align-items: center; justify-content: center;
     opacity: 0;
     animation: logoIn 1.2s 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
-  .intro-logo svg { width: 50%; height: 50%; filter: drop-shadow(0 0 14px rgba(0, 255, 170, 0.55)); }
-  .intro-logo::before, .intro-logo::after {
-    content: ''; position: absolute; border-radius: 50%;
-  }
-  .intro-logo::before { inset: 0; border: 1px solid rgba(0, 210, 255, 0.4); background: radial-gradient(circle, rgba(0, 210, 255, 0.12), transparent 70%); }
-  .intro-logo::after { inset: -9px; border: 1px dashed rgba(0, 255, 170, 0.28); animation: logoSpin 26s linear infinite; }
-  @keyframes logoSpin { to { transform: rotate(360deg); } }
+  .intro-logo svg { width: 110%; height: 110%; flex: none; overflow: visible; filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.4)); }
   @keyframes logoIn {
     from { opacity: 0; transform: scale(0.6); filter: blur(8px); }
     to { opacity: 1; transform: none; filter: blur(0); }
   }
+  /* animated equalizer bars inside the play triangle of the mark */
+  .dv-b { transform-box: fill-box; transform-origin: 50% 100%; animation: dvBar 0.9s ease-in-out infinite alternate; }
+  @keyframes dvBar { from { transform: scaleY(0.3); } to { transform: scaleY(1.15); } }
   .intro-title {
-    display: flex;
-    color: #e8f4ff; font-size: 46px; font-weight: 300;
-    letter-spacing: 0.42em; padding-left: 0.42em; margin: 30px 0 10px;
-    text-shadow: 0 0 30px rgba(0, 210, 255, 0.35);
+    display: flex; margin: calc(var(--S) * .2) 0 8px;
+    font-family: 'Eurostile', 'Bank Gothic', 'Segoe UI', 'Trebuchet MS', system-ui, sans-serif;
+    font-size: clamp(34px, 6.4vh, 56px); font-weight: 800; letter-spacing: 0.05em;
+    color: #fff; text-shadow: 0 0 24px rgba(0, 210, 255, 0.3);
     white-space: pre;
   }
   .intro-title span {
@@ -196,7 +195,7 @@
     .intro-corners i:nth-child(odd) { left: 14px; }
     .intro-corners i:nth-child(even) { right: 14px; }
     .intro-meta { padding: 0 34px; bottom: 22px; font-size: 8px; letter-spacing: 0.2em; }
-    .intro-title { letter-spacing: 0.3em; padding-left: 0.3em; }
+    .intro-title { letter-spacing: 0.03em; }
     .boot-steps { gap: 12px; font-size: 8px; }
   }
 
@@ -213,7 +212,7 @@
   }
   #brand-logo-container:hover { opacity: 1 !important; visibility: visible !important; transform: translateY(-2px); }
   #brand-logo-container.faded { opacity: 0; visibility: hidden; }
-  .brand-logo-svg { width: 32px; height: 32px; filter: drop-shadow(0 0 6px rgba(0, 255, 170, 0.6)); }
+  .brand-logo-svg { width: 40px; height: 40px; overflow: visible; filter: drop-shadow(0 0 6px rgba(0, 255, 170, 0.6)); }
   .brand-text-wrap { display: flex; flex-direction: column; }
   .brand-title { color: #e0f2fe; font-size: 14px; font-weight: 700; letter-spacing: 0.05em; line-height: 1.1; }
   .brand-subtitle { color: var(--ok); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.8; }
@@ -360,7 +359,7 @@
     #panel { top: 58px; max-height: calc(100dvh - 64px); }
     #brand-logo-container { top: 8px; padding: 5px 10px; }
     #toggle-panel, #reveal-player { top: 8px; }
-    .intro-logo { width: 36px; height: 36px; }
+    .intro-content { --S: 110px; }
     .intro-title { margin: 8px 0 4px; }
     .intro-subtitle { margin: 4px 0; }
     .boot-line { margin: 4px 0 8px; }
@@ -419,6 +418,19 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <linearGradient id="g1" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00ffaa"/><stop offset="100%" stop-color="#00d2ff"/></linearGradient>
   <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#aa00ff"/><stop offset="100%" stop-color="#00ffaa"/></linearGradient>
+
+  <linearGradient id="dvg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00a2ff"/><stop offset=".5" stop-color="#00e5ff"/><stop offset="1" stop-color="#00ff9d"/></linearGradient>
+  <linearGradient id="dvo" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00d2ff"/><stop offset=".55" stop-color="#eafdff"/><stop offset="1" stop-color="#00ff9d"/></linearGradient>
+  <filter id="dvglow" x="-30%" y="-60%" width="160%" height="220%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <clipPath id="dvtri"><path d="M80 82L124 100L80 118Z"/></clipPath>
+  <symbol id="dv-mark" viewBox="0 0 200 200" overflow="visible">
+    <g transform="translate(100 100) rotate(-28)"><path d="M-84 0A84 30 0 0 1 84 0" fill="none" stroke="url(#dvo)" stroke-width="2.2" opacity=".5" filter="url(#dvglow)"/></g>
+    <path fill="url(#dvg)" fill-rule="evenodd" d="M44 56H104A44 44 0 0 1 104 144H44Z M58 70H104A30 30 0 0 1 104 130H58Z"/>
+    <rect x="64" y="80" width="3" height="40" rx="1.5" fill="url(#dvg)" opacity=".85"/>
+    <path d="M80 82L124 100L80 118Z" fill="url(#dvg)" opacity=".9"/>
+    <g clip-path="url(#dvtri)" fill="#eaffff" opacity=".92"><rect class="dv-b" x="82" y="106" width="3" height="8" rx="1" style="animation-delay:-0.1s"/><rect class="dv-b" x="87" y="98" width="3" height="16" rx="1" style="animation-delay:-0.5s"/><rect class="dv-b" x="92" y="88" width="3" height="26" rx="1" style="animation-delay:-0.2s"/><rect class="dv-b" x="97" y="96" width="3" height="18" rx="1" style="animation-delay:-0.7s"/><rect class="dv-b" x="102" y="102" width="3" height="12" rx="1" style="animation-delay:-0.35s"/><rect class="dv-b" x="107" y="107" width="3" height="7" rx="1" style="animation-delay:-0.6s"/></g>
+    <g transform="translate(100 100) rotate(-28)"><path d="M-84 0A84 30 0 0 0 84 0" fill="none" stroke="url(#dvo)" stroke-width="3" filter="url(#dvglow)"/></g>
+  </symbol>
 </defs></svg>
 
 <!-- CINEMATIC BOOT SCREEN -->
@@ -427,13 +439,8 @@
   <div class="intro-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
   <div class="intro-meta" aria-hidden="true"><span>AUDIO VISUALIZER SUITE</span><span>REMIXED EDITION</span></div>
   <div class="intro-content" id="intro-content">
-    <div class="intro-logo">
-      <svg viewBox="0 0 64 64" fill="none">
-        <path d="M12 52 L52 12 L36 52 L26 38 L12 52 Z" fill="url(#g1)"/>
-        <path d="M52 12 L12 52 L52 36 L38 26 L52 12 Z" fill="url(#g2)" opacity=".85"/>
-      </svg>
-    </div>
-    <h1 class="intro-title" id="intro-title" aria-label="DART VIZ"></h1>
+    <div class="intro-logo"><svg viewBox="0 0 200 200" aria-hidden="true"><use href="#dv-mark"/></svg></div>
+    <h1 class="intro-title" id="intro-title" aria-label="Dart Viz"></h1>
     <div class="intro-rule"></div>
     <p class="intro-subtitle">HYPER-REACTIVE AUDIO SYSTEM</p>
     <div class="boot-bar"><i id="boot-fill"></i></div>
@@ -447,13 +454,8 @@
 </div>
 
 <div id="brand-logo-container">
-  <svg class="brand-logo-svg" viewBox="0 0 64 64" fill="none">
-    <path d="M12 52 L52 12 L36 52 L26 38 L12 52 Z" fill="url(#g1)"/>
-    <path d="M52 12 L12 52 L52 36 L38 26 L52 12 Z" fill="url(#g2)" opacity=".85"/>
-    <polygon points="52,12 38,26 26,38" fill="#fff" opacity=".6"/>
-    <circle cx="52" cy="12" r="3" fill="#00ffaa"/>
-  </svg>
-  <div class="brand-text-wrap"><span class="brand-title">DART VIZ</span><span class="brand-subtitle">Audio-Visualizer</span></div>
+  <svg class="brand-logo-svg" viewBox="0 0 200 200" aria-hidden="true"><use href="#dv-mark"/></svg>
+  <div class="brand-text-wrap"><span class="brand-title">Dart Viz</span><span class="brand-subtitle">Audio-Visualizer</span></div>
 </div>
 
 <div id="video-stage">
@@ -512,7 +514,7 @@
     <input id="time-slider" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek">
     <span id="total-time-display" class="scrubber-time">00:00</span>
   </div>
-  <div id="build-tag">BUILD v6 · FOLDER FIX · 2026-11-27</div>
+  <div id="build-tag">BUILD v7 · NEW LOGO · 2026-11-27</div>
 </div>
 
 <div id="status">Ambient mode running. Real mode requires sharing audio.</div>
@@ -827,7 +829,7 @@ favBtn.addEventListener('click', () => {
 /* FIX: no confirm() before the picker (it consumed the click's user-activation, so Chrome refused the picker).
    If a reconnect fails, the next click goes straight to choosing a new folder instead of looping on reconnect.
    Real error reasons are shown in the status bar. */
-const BUILD = 'v6';
+const BUILD = 'v7';
 let fsRetry = false;   // a folder action failed while in fullscreen: leave fullscreen first next time
 folderBtn.addEventListener('click', async () => {
   console.log('[DART VIZ ' + BUILD + '] folder click', { hasHandle: Store.hasHandle, linked: Store.linked, embedded: embeddedFrame, secure: window.isSecureContext, api: Store.supported });
@@ -1385,31 +1387,38 @@ const Intro = (() => {
   let gestureNeeded = false;
   let w = 0, h = 0, t0 = performance.now(), raf = 0, state = 'boot', launchAt = 0, ready = false, finished = false;
 
-  'DART VIZ'.split('').forEach((ch, i) => { const s = document.createElement('span'); s.textContent = ch; s.style.animationDelay = (.5 + i * .09) + 's'; if (ch === ' ') s.style.width = '.35em'; titleEl.appendChild(s); });
-  const N = reduce ? 50 : 180, B = 72;
+  'Dart Viz'.split('').forEach((ch, i) => { const s = document.createElement('span'); s.textContent = ch; s.style.animationDelay = (.5 + i * .09) + 's'; if (ch === ' ') s.style.width = '.35em'; if (i >= 5) s.style.color = ['#00c2ff', '#00e0e0', '#00ff9d'][i - 5]; titleEl.appendChild(s); });
+  const N = reduce ? 50 : 180, B = 96;
   const P = Array.from({ length: N }, () => ({ a: Math.random() * 6.2832, d: .35 + Math.random() * .9, s: .3 + Math.random() * .9, hue: 165 + Math.random() * 60, o: Math.random() }));
   function size() { const dpr = Math.min(devicePixelRatio || 1, 2); w = innerWidth; h = innerHeight; cv.width = w * dpr; cv.height = h * dpr; c.setTransform(dpr, 0, 0, dpr, 0, 0); }
   addEventListener('resize', size); size();
 
   const steps = [...document.querySelectorAll('#boot-steps li')];
+  const logoEl = document.querySelector('.intro-logo');
   let prog = 0;
   function frame(now) {
     raf = requestAnimationFrame(frame);
     const t = (now - t0) / 1000, L = state === 'launch' ? (now - launchAt) / 1000 : 0;
-    const cx = w / 2, cy = h / 2, R = Math.max(150, Math.min(w, h) * .36), conv = ease(clamp(t / (reduce ? .5 : 2.2)));
-    const fade = 1 - clamp(L * 1.1), blast = L * L * w, grow = state === 'launch' ? 1 + L * 3 : 1, dim = Math.min(w, h) < 520 ? .45 : 1;
+    // the ring is centred on the logo element, so it follows layout, scaling and the launch zoom
+    const lr = logoEl.getBoundingClientRect(), S = lr.width || 200;
+    const cx = lr.left + lr.width / 2, cy = lr.top + lr.height / 2, R = S * .40;
+    const conv = ease(clamp(t / (reduce ? .5 : 2.2)));
+    const fade = 1 - clamp(L * 1.1), blast = L * L * w, grow = state === 'launch' ? 1 + L * 3 : 1;
     const target = ready ? 1 : Math.min(.92, t / (reduce ? .6 : 2.8) * .92);
     prog += (target - prog) * .08;
 
-    // background: deep field + soft core glow
+    // background: deep field + core glow behind the mark
     c.globalCompositeOperation = 'source-over';
     c.fillStyle = '#02060f'; c.fillRect(0, 0, w, h);
     const bg = c.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * .65);
-    bg.addColorStop(0, 'rgba(0,80,120,.32)'); bg.addColorStop(.5, 'rgba(0,30,60,.14)'); bg.addColorStop(1, 'rgba(2,6,15,0)');
+    bg.addColorStop(0, 'rgba(0,80,120,.30)'); bg.addColorStop(.5, 'rgba(0,30,60,.12)'); bg.addColorStop(1, 'rgba(2,6,15,0)');
     c.fillStyle = bg; c.fillRect(0, 0, w, h);
+    const core = c.createRadialGradient(cx, cy, 0, cx, cy, R * 1.7);
+    core.addColorStop(0, `rgba(0,200,255,${.16 * conv * fade})`); core.addColorStop(1, 'rgba(0,200,255,0)');
+    c.fillStyle = core; c.fillRect(cx - R * 2, cy - R * 2, R * 4, R * 4);
 
     // drifting blueprint grid
-    c.lineWidth = 1; c.strokeStyle = `rgba(0,210,255,${.045 * conv * fade})`;
+    c.lineWidth = 1; c.strokeStyle = `rgba(0,210,255,${.04 * conv * fade})`;
     const gs = 56, go = (t * 6) % gs;
     c.beginPath();
     for (let x = -go; x < w; x += gs) { c.moveTo(x, 0); c.lineTo(x, h); }
@@ -1419,50 +1428,48 @@ const Intro = (() => {
     // slow scan band
     const sy = (t * 120) % (h + 80) - 40;
     const sg = c.createLinearGradient(0, sy - 40, 0, sy + 40);
-    sg.addColorStop(0, 'rgba(0,210,255,0)'); sg.addColorStop(.5, 'rgba(0,210,255,.07)'); sg.addColorStop(1, 'rgba(0,210,255,0)');
+    sg.addColorStop(0, 'rgba(0,210,255,0)'); sg.addColorStop(.5, 'rgba(0,210,255,.06)'); sg.addColorStop(1, 'rgba(0,210,255,0)');
     c.fillStyle = sg; c.fillRect(0, sy - 40, w, 80);
 
     c.save(); c.translate(cx, cy);
+    const rO = R * 1.62 + blast;   // outer ring radius (just beyond the tallest bars)
 
-    // hairline rings
-    [.7, 1.08].forEach((k, i) => {
-      c.strokeStyle = `rgba(0,210,255,${(.10 - i * .03) * conv * fade})`; c.lineWidth = 1;
-      c.beginPath(); c.arc(0, 0, R * k + blast * (1 + i * .15), 0, 6.2832); c.stroke();
+    // hairline inner ring + dotted outer ring
+    c.lineWidth = 1; c.strokeStyle = `rgba(0,210,255,${.16 * conv * fade})`;
+    c.beginPath(); c.arc(0, 0, R * .9 + blast * .8, 0, 6.2832); c.stroke();
+    c.save(); c.setLineDash([1.5, 7]); c.lineWidth = 1.6; c.strokeStyle = `rgba(0,229,255,${.4 * conv * fade})`;
+    c.beginPath(); c.arc(0, 0, rO, 0, 6.2832); c.stroke(); c.restore();
+
+    // accent dots drifting on the outer ring
+    [[-2.5, '0,162,255'], [.4, '0,255,157'], [2.7, '0,210,255'], [-.55, '0,255,157']].forEach(([a0, rgb], i) => {
+      const a = a0 + Math.sin(t * .5 + i) * .04;
+      c.fillStyle = `rgba(${rgb},${.9 * conv * fade})`; c.beginPath(); c.arc(Math.cos(a) * rO, Math.sin(a) * rO, 2.6, 0, 6.2832); c.fill();
     });
 
-    // rotating tick ring
-    const T = 120, spin = t * .06;
-    for (let i = 0; i < T; i++) {
-      const a = i / T * 6.2832 + spin, major = i % 10 === 0, r1 = R * 1.22 + blast, r2 = r1 + (major ? 12 : 5);
-      c.strokeStyle = `rgba(160,235,255,${(major ? .5 : .2) * conv * fade * dim})`; c.lineWidth = major ? 1.5 : 1;
-      c.beginPath(); c.moveTo(Math.cos(a) * r1, Math.sin(a) * r1); c.lineTo(Math.cos(a) * r2, Math.sin(a) * r2); c.stroke();
-    }
-
-    // spectrum ring
-    c.lineCap = 'round'; c.lineWidth = 2;
+    // radial spectrum ring: tallest at the top, blue on the left to green on the right
+    const r0 = R + blast * .8, bw = Math.max(2, 6.2832 * r0 / B * .52);
+    c.lineCap = 'butt'; c.lineWidth = bw;
     for (let i = 0; i < B; i++) {
-      const a = i / B * 6.2832 - 1.5708;
+      const th = i / B * 6.2832, a = th - 1.5708, wTop = .5 + .5 * Math.cos(th);
       const n = Math.abs(Math.sin(t * 2.1 + i * .55) * Math.cos(t * 1.3 + i * .23)), n2 = .5 + .5 * Math.sin(t * 3 + i * .9);
-      const len = (4 + (n * .7 + n2 * .3) * 34 * grow) * conv, r0 = R * 1.0 + blast * .8, hue = 178 + i / B * 28;
-      c.strokeStyle = `hsla(${hue},95%,${60 + n * 20}%,${(.35 + .55 * conv) * fade * dim})`;
+      const len = (R * .10 + (n * .6 + n2 * .4) * R * (.12 + .34 * wTop) * grow) * conv;
+      const hue = 205 - (Math.sin(th) + 1) / 2 * 55;
+      c.strokeStyle = `hsla(${hue},95%,${58 + n * 18}%,${(.4 + .55 * conv) * fade})`;
       c.beginPath(); c.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); c.lineTo(Math.cos(a) * (r0 + len), Math.sin(a) * (r0 + len)); c.stroke();
     }
 
-    // progress ring
-    c.lineCap = 'butt';
-    c.strokeStyle = `rgba(0,210,255,${.12 * fade})`; c.lineWidth = 2;
-    c.beginPath(); c.arc(0, 0, R * .88 + blast, 0, 6.2832); c.stroke();
+    // loading progress on the outer ring
     c.save(); c.shadowBlur = 14; c.shadowColor = '#00d2ff';
-    c.strokeStyle = `rgba(0,255,200,${.95 * fade})`; c.lineWidth = 2.5;
-    c.beginPath(); c.arc(0, 0, R * .88 + blast, -1.5708, -1.5708 + prog * 6.2832); c.stroke();
+    c.strokeStyle = `rgba(0,255,200,${.95 * fade})`; c.lineWidth = 2.5; c.lineCap = 'round';
+    c.beginPath(); c.arc(0, 0, rO, -1.5708, -1.5708 + prog * 6.2832); c.stroke();
     c.restore();
     c.restore();
 
     // orbiting particles
     for (const p of P) {
       const ang = p.a + t * p.s * .35 * (1 + L * 4);
-      const dist = R * (1.15 + p.d * 2.2 * (1 - conv)) + (p.o - .5) * 40 * conv + blast * .9 * p.s;
-      c.fillStyle = `hsla(${p.hue},95%,72%,${(.12 + conv * .6) * (1 - clamp(L * .9)) * dim})`;
+      const dist = R * (1.75 + p.d * 2.2 * (1 - conv)) + (p.o - .5) * 40 * conv + blast * .9 * p.s;
+      c.fillStyle = `hsla(${p.hue},95%,72%,${(.10 + conv * .4) * (1 - clamp(L * .9))})`;
       c.beginPath(); c.arc(cx + Math.cos(ang) * dist, cy + Math.sin(ang) * dist, .8 + p.o * 1.4, 0, 6.2832); c.fill();
     }
 
